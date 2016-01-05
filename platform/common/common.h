@@ -129,4 +129,33 @@ extern void *gp2x_screen;
 #define menu_draw_end() \
 	menu_flip()
 
+#elif defined(_EE)
+ #include <libpad.h>
+ #include "../ps2/ps2.h"
+
+#define BTN_NORTH	BTN_TRIANGLE
+#define BTN_SOUTH	BTN_X
+#define BTN_WEST	BTN_SQUARE
+#define BTN_EAST	BTN_CIRCLE
+#define BTN_L		BTN_L1
+#define BTN_R		BTN_R1
+
+ unsigned int wait_for_input(unsigned int interesting, int is_key_config);
+ void menu_draw_begin(void);
+ void menu_darken_bg(void *dst, const void *src, int pixels, int darker);
+ void menu_draw_end(void);
+
+ #define SCREEN_WIDTH ps2_screen_width
+ #define SCREEN_HEIGHT ps2_screen_height
+ #define SCREEN_BUFFER ps2_screen
+
+#define read_buttons(which) \
+	wait_for_input(which, 0)
+#define read_buttons_async(which) \
+	(ps2_pad_read(which&1, 0))
+#define clear_screen() \
+	ps2_ClearScreen()
+#define darken_screen() \
+	menu_darken_bg(SCREEN_BUFFER, SCREEN_BUFFER, SCREEN_WIDTH*SCREEN_HEIGHT, 0)
+
 #endif
