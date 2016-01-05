@@ -179,6 +179,8 @@ static int parse_hex_color(char *buff)
 	if (endp != buff)
 #ifdef PSP
 		return ((t<<8)&0xf800) | ((t>>5)&0x07e0) | ((t>>19)&0x1f);
+#elif _EE
+		return ((t<<7)&0x7800) | ((t>>6)&0x03e0) | ((t>>19)&0x1f) | 0x8000;	//A1R5G5B5
 #else
 		return ((t>>8)&0xf800) | ((t>>5)&0x07e0) | ((t>>3)&0x1f);
 #endif
@@ -443,7 +445,14 @@ void debug_menu_loop(void)
 					mplayer_loop();
 				}
 				if ((inp & (PBTN_WEST|PBTN_LEFT)) == (PBTN_WEST|PBTN_LEFT)) {
+#ifdef _EE
+					char cwd[240], path[256];
+					getcwd(cwd, 240);
+					sprintf(path, "%s/dumps", cwd);
+					fileXioMkdir(path, 0777);
+#else
 					mkdir("dumps", 0777);
+#endif
 					PDebugDumpMem();
 					while (inp & PBTN_WEST) inp = in_menu_wait_any(-1);
 					dumped = 1;
