@@ -74,12 +74,16 @@ void *blockcpy(void *dst, const void *src, size_t n);
 void blockcpy_or(void *dst, void *src, size_t n, int pat);
 #else
 // utility
+#ifdef _EE
+void blockcpy_or(void *dst, void *src, size_t n, int pat);
+#else
 void blockcpy_or(void *dst, void *src, size_t n, int pat)
 {
   unsigned char *pd = dst, *ps = src;
   for (; n; n--)
     *pd++ = (unsigned char) (*ps++ | pat);
 }
+#endif
 #define blockcpy memcpy
 #endif
 
@@ -1136,7 +1140,11 @@ static void BackFill(int reg7, int sh)
 
 // --------------------------------------------
 
+#ifdef _EE
+unsigned short HighPal[0x100] __attribute__((aligned((16))));
+#else
 unsigned short HighPal[0x100];
+#endif
 
 #ifndef _ASM_DRAW_C
 void PicoDoHighPal555(int sh)
@@ -1146,8 +1154,16 @@ void PicoDoHighPal555(int sh)
 
   Pico.m.dirtyPal = 0;
 
+ #if _EE
+  if (!sh){
+	  do_pal_convert(HighPal, Pico.cram);
+  }
+  else{
+	  do_pal_convert_with_shadows(HighPal, Pico.cram);
+  }
+#else
   {
-    unsigned int *spal=(void *)Pico.cram;
+	unsigned int *spal=(void *)Pico.cram;
     unsigned int *dpal=(void *)HighPal;
     for (i = 0x3f/2; i >= 0; i--)
 #ifdef USE_BGR555
@@ -1159,15 +1175,16 @@ void PicoDoHighPal555(int sh)
 
   if (sh)
   {
-    // shadowed pixels
+	  // shadowed pixels
     for (i = 0x3f; i >= 0; i--)
-      pal[0x40|i] = pal[0xc0|i] = (unsigned short)((pal[i]>>1)&0x738e);
-    // hilighted pixels
+		pal[0x40|i] = pal[0xc0|i] = (unsigned short)((pal[i]>>1)&0x738e);
+	// hilighted pixels
     for (i = 0x3f; i >= 0; i--) {
-      t=pal[i]&0xe71c;t+=0x4208;if(t&0x20)t|=0x1c;if(t&0x800)t|=0x700;if(t&0x10000)t|=0xe000;t&=0xe71c;
-      pal[0x80|i]=(unsigned short)t;
+		t=pal[i]&0xe71c;t+=0x4208;if(t&0x20)t|=0x1c;if(t&0x800)t|=0x700;if(t&0x10000)t|=0xe000;t&=0xe71c;
+		pal[0x80|i]=(unsigned short)t;
     }
   }
+#endif
 }
 
 static void FinalizeLineBGR444(int sh)
@@ -1226,7 +1243,7 @@ static void FinalizeLineRGB555(int sh)
   }
 
   {
-#ifndef PSP
+#if !defined(PSP) && !defined(_EE)
     int i, mask=0xff;
     if (!sh && (rendstatus & PDRAW_ACC_SPRITES))
       mask=0x3f; // accurate sprites, upper bits are priority stuff
