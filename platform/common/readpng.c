@@ -7,6 +7,9 @@
 #ifdef PSP
 #define BG_WIDTH  480
 #define BG_HEIGHT 272
+#elif defined(_EE)
+#define BG_WIDTH  320
+#define BG_HEIGHT 224
 #else
 #define BG_WIDTH  320
 #define BG_HEIGHT 240
@@ -18,7 +21,7 @@ int readpng(void *dest, const char *fname, readpng_what what)
 	png_structp png_ptr = NULL;
 	png_infop info_ptr = NULL;
 	png_bytepp row_ptr = NULL;
-	int ret = -1;
+	int ret = -1, width, height, bit_depth;
 
 	if (dest == NULL || fname == NULL)
 	{
@@ -57,22 +60,23 @@ int readpng(void *dest, const char *fname, readpng_what what)
 		goto done;
 	}
 
-	// lprintf("%s: %ix%i @ %ibpp\n", fname, (int)info_ptr->width, (int)info_ptr->height, info_ptr->pixel_depth);
+	width=png_get_image_width(png_ptr, info_ptr);
+	height=png_get_image_height(png_ptr, info_ptr);
+	bit_depth=png_get_bit_depth(png_ptr, info_ptr);
+	// lprintf("%s: %ix%i @ %ibpp\n", fname, width, height, bit_depth);
 
 	switch (what)
 	{
 		case READPNG_BG:
 		{
-			int height, width, h;
+			int h;
 			unsigned short *dst = dest;
-			if (info_ptr->pixel_depth != 24)
+			if (bit_depth != 8)
 			{
-				lprintf(__FILE__ ": bg image uses %ibpp, needed 24bpp\n", info_ptr->pixel_depth);
+				lprintf(__FILE__ ": bg image uses %ibpc, needed 8bpc\n", bit_depth);
 				break;
 			}
-			height = info_ptr->height;
 			if (height > BG_HEIGHT) height = BG_HEIGHT;
-			width = info_ptr->width;
 			if (width > BG_WIDTH) width = BG_WIDTH;
 
 			for (h = 0; h < height; h++)
@@ -81,8 +85,10 @@ int readpng(void *dest, const char *fname, readpng_what what)
 				int len = width;
 				while (len--)
 				{
-#ifdef PSP
-					*dst++ = ((src[2]&0xf8)<<8) | ((src[1]&0xf8)<<3) | (src[0] >> 3); // BGR
+#if PSP
+					*dst++ = ((src[2]&0xf8)<<8) | ((src[1]&0xf8)<<3) | (src[0] >> 3); // BGR565
+#elif _EE
+					*dst++ = ((src[2]&0xf8)<<7) | ((src[1]&0xf8)<<2) | (src[0] >> 3) | 0x8000; // A1B5G5R5
 #else
 					*dst++ = ((src[0]&0xf8)<<8) | ((src[1]&0xf8)<<3) | (src[2] >> 3); // RGB
 #endif
@@ -97,15 +103,14 @@ int readpng(void *dest, const char *fname, readpng_what what)
 		{
 			int x, y, x1, y1;
 			unsigned char *dst = dest;
-			if (info_ptr->width != 128 || info_ptr->height != 160)
+			if (width != 128 || height != 160)
 			{
-				lprintf(__FILE__ ": unexpected font image size %ix%i, needed 128x160\n",
-					(int)info_ptr->width, (int)info_ptr->height);
+				lprintf(__FILE__ ": unexpected font image size %ix%i, needed 128x160\n", width, height);
 				break;
 			}
-			if (info_ptr->pixel_depth != 8)
+			if (bit_depth != 8)
 			{
-				lprintf(__FILE__ ": font image uses %ibpp, needed 8bpp\n", info_ptr->pixel_depth);
+				lprintf(__FILE__ ": font image uses %ibpp, needed 8bpp\n", bit_depth);
 				break;
 			}
 			for (y = 0; y < 16; y++)
@@ -127,15 +132,14 @@ int readpng(void *dest, const char *fname, readpng_what what)
 		{
 			int x1, y1;
 			unsigned char *dst = dest;
-			if (info_ptr->width != 8 || info_ptr->height != 10)
+			if (width != 8 || height != 10)
 			{
-				lprintf(__FILE__ ": unexpected selector image size %ix%i, needed 8x10\n",
-					(int)info_ptr->width, (int)info_ptr->height);
+				lprintf(__FILE__ ": unexpected selector image size %ix%i, needed 8x10\n", width, height);
 				break;
 			}
-			if (info_ptr->pixel_depth != 8)
+			if (bit_depth != 8)
 			{
-				lprintf(__FILE__ ": selector image uses %ibpp, needed 8bpp\n", info_ptr->pixel_depth);
+				lprintf(__FILE__ ": selector image uses %ibpp, needed 8bpp\n", bit_depth);
 				break;
 			}
 			for (y1 = 0; y1 < 10; y1++)
@@ -153,14 +157,12 @@ int readpng(void *dest, const char *fname, readpng_what what)
 			int height, width, h;
 			int needw = (what == READPNG_480_24) ? 480 : 320;
 			unsigned char *dst = dest;
-			if (info_ptr->pixel_depth != 24)
+			if (bit_depth != 8)
 			{
-				lprintf(__FILE__ ": image uses %ibpp, needed 24bpp\n", info_ptr->pixel_depth);
+				lprintf(__FILE__ ": image uses %ibpc, needed 28bpc\n", bit_depth);
 				break;
 			}
-			height = info_ptr->height;
 			if (height > 240) height = 240;
-			width = info_ptr->width;
 			if (width > needw) width = needw;
 
 			for (h = 0; h < height; h++)
@@ -182,5 +184,3 @@ done:
 	fclose(fp);
 	return ret;
 }
-
-
