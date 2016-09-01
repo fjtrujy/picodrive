@@ -1930,10 +1930,10 @@ static void menu_loop_root(void)
 				{
 					char curr_path[PATH_MAX], *selfname;
 					FILE *tstf;
-					if ( (tstf = fopen(lastRomFile, "rb")) )
+					if ( (tstf = fopen(loadedRomFName, "rb")) )
 					{
 						fclose(tstf);
-						strcpy(curr_path, lastRomFile);
+						strcpy(curr_path, loadedRomFName);
 					}
 					else
 						getcwd(curr_path, PATH_MAX);
@@ -2103,10 +2103,10 @@ int menu_loop_tray(void)
 
 	menu_gfx_prepare();
 
-	if ( (tstf = fopen(lastRomFile, "rb")) )
+	if ( (tstf = fopen(loadedRomFName, "rb")) )
 	{
 		fclose(tstf);
-		strcpy(curr_path, lastRomFile);
+		strcpy(curr_path, loadedRomFName);
 	}
 	else
 	{
@@ -2130,7 +2130,7 @@ int menu_loop_tray(void)
 					if (selfname) {
 						int ret = -1;
 						cd_img_type cd_type;
-						cd_type = emu_cdCheck(NULL);
+						cd_type = emu_cdCheck(NULL, romFileName);
 						if (cd_type != CIT_NOT_CD)
 							ret = Insert_CD(romFileName, cd_type);
 						if (ret != 0) {
