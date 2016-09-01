@@ -216,7 +216,7 @@ static inline void do_pal_update(void)
 	}
 	else{
 		do_pal_convert(pal, Pico.cram);
-		if(rendstatus & PDRAW_ACC_SPRITES) memcpy(&pal[0x80], pal, 0x40*2);
+		if(rendstatus & PDRAW_SPR_LO_ON_HI) memcpy(&pal[0x80], pal, 0x40*2);
 	}
 	//For OSD messages and status indicators.
 	pal[OSD_STAT_BLK_PAL_ENT] = 0x8000;
