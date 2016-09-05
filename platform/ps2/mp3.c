@@ -6,8 +6,8 @@
 #include <mad.h>
 
 #include "ps2.h"
-#include "../../Pico/PicoInt.h"
-#include "../../Pico/sound/mix.h"
+#include "../../pico/pico_int.h"
+#include "../../pico/sound/mix.h"
 #include "../common/lprintf.h"
 
 int mp3_last_error = 0;
