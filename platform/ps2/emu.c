@@ -22,8 +22,8 @@
 #include "../common/emu.h"
 #include "../common/config.h"
 #include "../common/lprintf.h"
-#include "../../Pico/PicoInt.h"
-#include "../../Pico/cd/cue.h"
+#include <pico/pico_int.h>
+#include <pico/cd/cue.h>
 
 #define OSD_FPS_X 270	//OSD FPS indicator X-coordinate.
 
