@@ -41,32 +41,32 @@ void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2);
 #define SOUND_THREAD_PRIORITY	0x50
 
 /* shorter btn names */
-#define BTN_UP       PAD_UP
-#define BTN_LEFT     PAD_LEFT
-#define BTN_RIGHT    PAD_RIGHT
-#define BTN_DOWN     PAD_DOWN
-#define BTN_L1       PAD_L1
-#define BTN_R1       PAD_R1
-#define BTN_L2       PAD_L2
-#define BTN_R2       PAD_R2
-#define BTN_L3       PAD_L3
-#define BTN_R3       PAD_R3
-#define BTN_TRIANGLE PAD_TRIANGLE
-#define BTN_CIRCLE   PAD_CIRCLE
-#define BTN_X        PAD_CROSS
-#define BTN_SQUARE   PAD_SQUARE
-#define BTN_SELECT   PAD_SELECT
-#define BTN_START    PAD_START
+#define PBTN_UP       PAD_UP
+#define PBTN_LEFT     PAD_LEFT
+#define PBTN_RIGHT    PAD_RIGHT
+#define PBTN_DOWN     PAD_DOWN
+#define PBTN_L1       PAD_L1
+#define PBTN_R1       PAD_R1
+#define PBTN_L2       PAD_L2
+#define PBTN_R2       PAD_R2
+#define PBTN_L3       PAD_L3
+#define PBTN_R3       PAD_R3
+#define PBTN_TRIANGLE PAD_TRIANGLE
+#define PBTN_CIRCLE   PAD_CIRCLE
+#define PBTN_X        PAD_CROSS
+#define PBTN_SQUARE   PAD_SQUARE
+#define PBTN_SELECT   PAD_SELECT
+#define PBTN_START    PAD_START
 
 /* fake 'nub' btns */
-#define BTN_NUB_L_UP	0x01000000
-#define BTN_NUB_L_RIGHT 0x02000000
-#define BTN_NUB_L_DOWN  0x04000000
-#define BTN_NUB_L_LEFT  0x08000000
-#define BTN_NUB_R_UP    0x10000000
-#define BTN_NUB_R_RIGHT 0x20000000
-#define BTN_NUB_R_DOWN  0x40000000
-#define BTN_NUB_R_LEFT  0x80000000
+#define PBTN_NUB_L_UP	0x01000000
+#define PBTN_NUB_L_RIGHT 0x02000000
+#define PBTN_NUB_L_DOWN  0x04000000
+#define PBTN_NUB_L_LEFT  0x08000000
+#define PBTN_NUB_R_UP    0x10000000
+#define PBTN_NUB_R_RIGHT 0x20000000
+#define PBTN_NUB_R_DOWN  0x40000000
+#define PBTN_NUB_R_LEFT  0x80000000
 
 void lprintf(const char *fmt, ...);
 
