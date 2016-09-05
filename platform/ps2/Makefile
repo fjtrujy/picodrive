@@ -5,7 +5,7 @@ use_musashi = 0
 use_mz80 = 0
 
 EE_GPVAL = -G0
-EE_CFLAGS += -mno-gpopt -O3 $(EE_GPVAL) -DNO_SYNC -DUTYPES_DEFINED
+EE_CFLAGS += -mno-gpopt -O3 $(EE_GPVAL) -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS
 EE_INCS += -I../.. -I. -I$(PS2SDK)/ports/include -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include
 EE_LDFLAGS += -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ee/lib -Tlinkfile -s
 EE_LIBS += -lgskit -ldmakit -lpng -laudsrv -lpad -lm -lz -lcdvd -lmad -lfileXio -lpatches -lc -lkernel
@@ -18,20 +18,20 @@ EE_OBJS := ps2.o io_suppliment.o emu.o menu.o mp3.o asm_utils.o $(EE_IOP_OBJS) m
 EE_OBJS += ../common/emu.o ../common/config.o ../common/menu.o ../common/fonts.o ../common/readpng.o
 
 # Pico
-EE_OBJS += ../../Pico/Area.o ../../Pico/Cart.o ../../Pico/Debug.o ../../Pico/Memory.o ../../Pico/Misc.o \
-		../../Pico/Pico/Pico.o ../../Pico/Pico/Memory.o ../../Pico/Pico/xpcm.o	\
-		../../Pico/Pico.o ../../Pico/Sek.o ../../Pico/VideoPort.o ../../Pico/Draw2.o ../../Pico/Draw.o \
-		../../Pico/Patch.o ../../Pico/Draw_mips_r5900.o ../../Pico/Memory_mips_r5900.o ../../Pico/Misc_mips_r5900.o
+EE_OBJS += ../../pico/area.o ../../pico/cart.o ../../pico/debug.o ../../pico/memory.o ../../pico/misc.o \
+		../../pico/pico/pico.o ../../pico/pico/memory.o ../../pico/pico/xpcm.o	\
+		../../pico/pico.o ../../pico/sek.o ../../pico/videoport.o ../../pico/draw2.o ../../pico/draw.o \
+		../../pico/patch.o ../../pico/Draw_mips_r5900.o ../../pico/Memory_mips_r5900.o ../../pico/Misc_mips_r5900.o
 # Pico - CD
-EE_OBJS += ../../Pico/cd/Pico.o ../../Pico/cd/Memory.o ../../Pico/cd/Sek.o ../../Pico/cd/LC89510.o \
-		../../Pico/cd/cd_sys.o ../../Pico/cd/cd_file.o ../../Pico/cd/gfx_cd.o \
-		../../Pico/cd/Area.o ../../Pico/cd/Misc.o ../../Pico/cd/pcm.o ../../Pico/cd/buffering.o ../../Pico/cd/cue.o
+EE_OBJS += ../../pico/cd/pico.o ../../pico/cd/memory.o ../../pico/cd/sek.o ../../pico/cd/LC89510.o \
+		../../pico/cd/cd_sys.o ../../pico/cd/cd_file.o ../../pico/cd/gfx_cd.o \
+		../../pico/cd/area.o ../../pico/cd/misc.o ../../pico/cd/pcm.o ../../pico/cd/buffering.o ../../pico/cd/cue.o
 
 # Pico - CartHW
-EE_OBJS += ../../Pico/carthw/carthw.o ../../Pico/carthw/svp/svp.o ../../Pico/carthw/svp/ssp16.o ../../Pico/carthw/svp/Memory.o ../../Pico/carthw/svp/compiler.o
+EE_OBJS += ../../pico/carthw/carthw.o ../../pico/carthw/svp/svp.o ../../pico/carthw/svp/ssp16.o ../../pico/carthw/svp/memory.o ../../pico/carthw/svp/compiler.o
 
 # Pico - sound
-EE_OBJS += ../../Pico/sound/sound.o ../../Pico/sound/mix.o ../../Pico/sound/sn76496.o ../../Pico/sound/ym2612.o
+EE_OBJS += ../../pico/sound/sound.o ../../pico/sound/mix.o ../../pico/sound/sn76496.o ../../pico/sound/ym2612.o
 # zlib (hacked)
 EE_OBJS += ../../zlib/gzio.o ../../zlib/inffast.o ../../zlib/inflate.o ../../zlib/inftrees.o ../../zlib/trees.o \
 	../../zlib/deflate.o ../../zlib/crc32.o ../../zlib/adler32.o ../../zlib/zutil.o ../../zlib/compress.o \
@@ -99,23 +99,19 @@ PFS_irx.o:
 	@echo ">>>" $<
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -Wno-unused -c $< -o $@
 
-../../Pico/Memory.o : ../../Pico/Memory.c
-	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MEMORY_C -D_ASM_MEMORY_C_AMIPS
-
-../../Pico/cd/Memory.o : ../../Pico/cd/Memory.c
-	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
-
-../../Pico/Draw.o : ../../Pico/Draw.c
-	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_DRAW_C_AMIPS
-
-../../Pico/Misc.o : ../../Pico/Misc.c
+../../pico/misc.o : ../../pico/misc.c
 	@echo ">>>" $<
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MISC_C_AMIPS
 
-../../Pico/cd/gfx_cd.o : ../../Pico/cd/gfx_cd.c
+../../pico/memory.o : ../../pico/memory.c
+	@echo ">>>" $<
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MEMORY_C -D_ASM_MEMORY_C_AMIPS
+
+../../pico/cd/memory.o : ../../pico/cd/memory.c
+	@echo ">>>" $<
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
+
+../../pico/cd/gfx_cd.o : ../../pico/cd/gfx_cd.c
 	@echo ">>>" $<
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
 
