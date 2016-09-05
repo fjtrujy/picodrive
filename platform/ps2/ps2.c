@@ -477,15 +477,15 @@ unsigned int ps2_pad_read(int port, int slot)
 
 		if(buttons.mode>>4&0xF!=PAD_TYPE_DIGITAL){
 			// analog..
-			if (buttons.ljoy_h < 128 - ANALOG_DEADZONE) result |= BTN_NUB_L_LEFT;
-			if (buttons.ljoy_h > 128 + ANALOG_DEADZONE) result |= BTN_NUB_L_RIGHT;
-			if (buttons.ljoy_v < 128 - ANALOG_DEADZONE) result |= BTN_NUB_L_UP;
-			if (buttons.ljoy_v > 128 + ANALOG_DEADZONE) result |= BTN_NUB_L_DOWN;
+			if (buttons.ljoy_h < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_L_LEFT;
+			if (buttons.ljoy_h > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_L_RIGHT;
+			if (buttons.ljoy_v < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_L_UP;
+			if (buttons.ljoy_v > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_L_DOWN;
 
-			if (buttons.rjoy_h < 128 - ANALOG_DEADZONE) result |= BTN_NUB_R_LEFT;
-			if (buttons.rjoy_h > 128 + ANALOG_DEADZONE) result |= BTN_NUB_R_RIGHT;
-			if (buttons.rjoy_v < 128 - ANALOG_DEADZONE) result |= BTN_NUB_R_UP;
-			if (buttons.rjoy_v > 128 + ANALOG_DEADZONE) result |= BTN_NUB_R_DOWN;
+			if (buttons.rjoy_h < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_R_LEFT;
+			if (buttons.rjoy_h > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_R_RIGHT;
+			if (buttons.rjoy_v < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_R_UP;
+			if (buttons.rjoy_v > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_R_DOWN;
 		}
 	}
 	else result=0;

@@ -134,13 +134,13 @@ unsigned int wait_for_input(unsigned int interesting, int is_key_config)
 	inp_prev = ret;
 
 	if (!is_key_config)
-		ret |= (ret & (BTN_NUB_L_UP|BTN_NUB_L_RIGHT|BTN_NUB_L_DOWN|BTN_NUB_L_LEFT|BTN_NUB_R_UP|BTN_NUB_R_RIGHT|BTN_NUB_R_DOWN|BTN_NUB_R_LEFT)) >> 24; // use analog as d-pad
+		ret |= (ret & (PBTN_NUB_L_UP|PBTN_NUB_L_RIGHT|PBTN_NUB_L_DOWN|PBTN_NUB_L_LEFT|PBTN_NUB_R_UP|PBTN_NUB_R_RIGHT|PBTN_NUB_R_DOWN|PBTN_NUB_R_LEFT)) >> 24; // use analog as d-pad
 
 	// we don't need diagonals in menus
-	if ((ret&BTN_UP)   && (ret&BTN_LEFT))  ret &= ~BTN_LEFT;
-	if ((ret&BTN_UP)   && (ret&BTN_RIGHT)) ret &= ~BTN_RIGHT;
-	if ((ret&BTN_DOWN) && (ret&BTN_LEFT))  ret &= ~BTN_LEFT;
-	if ((ret&BTN_DOWN) && (ret&BTN_RIGHT)) ret &= ~BTN_RIGHT;
+	if ((ret&PBTN_UP)   && (ret&PBTN_LEFT))  ret &= ~PBTN_LEFT;
+	if ((ret&PBTN_UP)   && (ret&PBTN_RIGHT)) ret &= ~PBTN_RIGHT;
+	if ((ret&PBTN_DOWN) && (ret&PBTN_LEFT))  ret &= ~PBTN_LEFT;
+	if ((ret&PBTN_DOWN) && (ret&PBTN_RIGHT)) ret &= ~PBTN_RIGHT;
 
 	return ret;
 }
@@ -544,14 +544,14 @@ static char *romsel_loop(char *curr_path)
 	for (;;)
 	{
 		draw_dirlist(curr_path, namelist, n, sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_L1|BTN_R1|BTN_X|BTN_CIRCLE, 0);
-		if(inp & BTN_UP  )  { sel--;   if (sel < 0)   sel = n-1; }
-		if(inp & BTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
-		if(inp & BTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
-		if(inp & BTN_L1)    { sel-=24; if (sel < 0)   sel = 0; }
-		if(inp & BTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-1; }
-		if(inp & BTN_R1)    { sel+=24; if (sel > n-1) sel = n-1; }
-		if(inp & BTN_CIRCLE) // enter dir/select
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-1; }
+		if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
+		if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
+		if(inp & PBTN_L1)    { sel-=24; if (sel < 0)   sel = 0; }
+		if(inp & PBTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-1; }
+		if(inp & PBTN_R1)    { sel+=24; if (sel > n-1) sel = n-1; }
+		if(inp & PBTN_CIRCLE) // enter dir/select
 		{
 			if (FIO_S_ISDIR(namelist[sel]->d_type))
 			{
@@ -593,7 +593,7 @@ QuitRomSel:
 				break;
 			}
 		}
-		if(inp & BTN_X) break; // cancel
+		if(inp & PBTN_X) break; // cancel
 	}
 
 	if (n > 0) {
@@ -619,14 +619,14 @@ static char *romsel_hddpart_loop(char *curr_path)
 	for (;;)
 	{
 		draw_devicelist(curr_path, namelist, n, sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_L1|BTN_R1|BTN_X|BTN_CIRCLE, 0);
-		if(inp & BTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
-		if(inp & BTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
-		if(inp & BTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
-		if(inp & BTN_L1)    { sel-=24; if (sel < 0)   sel = 0; }
-		if(inp & BTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-2; }
-		if(inp & BTN_R1)    { sel+=24; if (sel > n-1) sel = n-2; }
-		if(inp & BTN_CIRCLE) { // enter dir/select
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
+		if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
+		if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
+		if(inp & PBTN_L1)    { sel-=24; if (sel < 0)   sel = 0; }
+		if(inp & PBTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-2; }
+		if(inp & PBTN_R1)    { sel+=24; if (sel > n-1) sel = n-2; }
+		if(inp & PBTN_CIRCLE) { // enter dir/select
 			int newlen = strlen(curr_path) + strlen(namelist[sel]->d_name) + 2;
 			char *p, *newdir = malloc(newlen);
 			strcpy(newdir, curr_path);
@@ -648,7 +648,7 @@ static char *romsel_hddpart_loop(char *curr_path)
 			free(newdir);
 			if(ret!=NULL) break;
 		}
-		if(inp & BTN_X) break; // cancel
+		if(inp & PBTN_X) break; // cancel
 	}
 
 	if (n > 0) {
@@ -693,14 +693,14 @@ static char *romsel_device_loop(char *curr_path)
 	for (;;)
 	{
 		draw_devicelist(curr_path, namelist, n, sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_L1|BTN_R1|BTN_X|BTN_CIRCLE, 0);
-		if(inp & BTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
-		if(inp & BTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
-		if(inp & BTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
-		if(inp & BTN_L1)    { sel-=24; if (sel < 0)   sel = 0; }
-		if(inp & BTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-2; }
-		if(inp & BTN_R1)    { sel+=24; if (sel > n-1) sel = n-2; }
-		if(inp & BTN_CIRCLE) { // enter dir/select
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
+		if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
+		if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
+		if(inp & PBTN_L1)    { sel-=24; if (sel < 0)   sel = 0; }
+		if(inp & PBTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-2; }
+		if(inp & PBTN_R1)    { sel+=24; if (sel > n-1) sel = n-2; }
+		if(inp & PBTN_CIRCLE) { // enter dir/select
 			char *newdir = malloc(strlen(namelist[sel]->d_name) + 2);
 			sprintf(newdir, "%s/", namelist[sel]->d_name);
 
@@ -715,7 +715,7 @@ static char *romsel_device_loop(char *curr_path)
 			if(ret!=NULL) break;
 		}
 
-		if(inp & BTN_X) break; // cancel
+		if(inp & PBTN_X) break; // cancel
 	}
 
 	if (n > 0) {
@@ -759,17 +759,17 @@ static void patches_menu_loop(void)
 	for(;;)
 	{
 		draw_patchlist(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_L1|BTN_R1|BTN_X|BTN_CIRCLE, 0);
-		if(inp & BTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = PicoPatchCount; }
-		if(inp & BTN_DOWN) { menu_sel++; if (menu_sel > PicoPatchCount) menu_sel = 0; }
-		if(inp &(BTN_LEFT|BTN_L1))  { menu_sel-=10; if (menu_sel < 0) menu_sel = 0; }
-		if(inp &(BTN_RIGHT|BTN_R1)) { menu_sel+=10; if (menu_sel > PicoPatchCount) menu_sel = PicoPatchCount; }
-		if(inp & BTN_CIRCLE) { // action
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		if(inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = PicoPatchCount; }
+		if(inp & PBTN_DOWN) { menu_sel++; if (menu_sel > PicoPatchCount) menu_sel = 0; }
+		if(inp &(PBTN_LEFT|PBTN_L1))  { menu_sel-=10; if (menu_sel < 0) menu_sel = 0; }
+		if(inp &(PBTN_RIGHT|PBTN_R1)) { menu_sel+=10; if (menu_sel > PicoPatchCount) menu_sel = PicoPatchCount; }
+		if(inp & PBTN_CIRCLE) { // action
 			if (menu_sel < PicoPatchCount)
 				PicoPatches[menu_sel].active = !PicoPatches[menu_sel].active;
 			else 	return;
 		}
-		if(inp & BTN_X) return;
+		if(inp & PBTN_X) return;
 	}
 
 }
@@ -888,18 +888,18 @@ static int savestate_menu_loop(int is_loading)
 	for(;;)
 	{
 		draw_savestate_menu(menu_sel, is_loading);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_X|BTN_CIRCLE, 0);
-		if(inp & BTN_UP  ) {
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_X|PBTN_CIRCLE, 0);
+		if(inp & PBTN_UP  ) {
 			do {
 				menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max;
 			} while (!(state_slot_flags & (1 << menu_sel)) && menu_sel != menu_sel_max && is_loading);
 		}
-		if(inp & BTN_DOWN) {
+		if(inp & PBTN_DOWN) {
 			do {
 				menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0;
 			} while (!(state_slot_flags & (1 << menu_sel)) && menu_sel != menu_sel_max && is_loading);
 		}
-		if(inp & BTN_CIRCLE) { // save/load
+		if(inp & PBTN_CIRCLE) { // save/load
 			if (menu_sel < 10) {
 				state_slot = menu_sel;
 				PicoStateProgressCB = emu_msg_cb; /* also suitable for menu */
@@ -910,7 +910,7 @@ static int savestate_menu_loop(int is_loading)
 				return 0;
 			} else	return 1;
 		}
-		if(inp & BTN_X) return 1;
+		if(inp & PBTN_X) return 1;
 	}
 }
 
@@ -1005,22 +1005,22 @@ static void key_config_loop(const me_bind_action *opts, int opt_cnt, int player_
 	for (;;)
 	{
 		draw_key_config(opts, opt_cnt, player_idx, sel);
-		inp = wait_for_input(CONFIGURABLE_KEYS|BTN_SELECT, 1);
-		if (!(inp & BTN_SELECT)) {
+		inp = wait_for_input(CONFIGURABLE_KEYS|PBTN_SELECT, 1);
+		if (!(inp & PBTN_SELECT)) {
 			prev_select = 0;
-			if(inp & BTN_UP  ) { sel--; if (sel < 0) sel = menu_sel_max; continue; }
-			if(inp & BTN_DOWN) { sel++; if (sel > menu_sel_max) sel = 0; continue; }
+			if(inp & PBTN_UP  ) { sel--; if (sel < 0) sel = menu_sel_max; continue; }
+			if(inp & PBTN_DOWN) { sel++; if (sel > menu_sel_max) sel = 0; continue; }
 		}
 		if (sel >= opt_cnt) {
-			if (inp & (BTN_X|BTN_CIRCLE)) break;
+			if (inp & (PBTN_X|PBTN_CIRCLE)) break;
 			else continue;
 		}
 		// if we are here, we want to bind/unbind something
-		if ((inp & BTN_SELECT) && !prev_select)
+		if ((inp & PBTN_SELECT) && !prev_select)
 			unbind_action(player_idx, opts[sel].mask);
-		prev_select = inp & BTN_SELECT;
+		prev_select = inp & PBTN_SELECT;
 		inp &= CONFIGURABLE_KEYS;
-		inp &= ~BTN_SELECT;
+		inp &= ~PBTN_SELECT;
 		for (i = 0; i < 32; i++)
 			if (inp & (1 << i)) {
 				if (count_bound_keys(opts[sel].mask, player_idx) >= 2)
@@ -1100,13 +1100,13 @@ static void kc_sel_loop(void)
 	while (1)
 	{
 		draw_kc_sel(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_X|BTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
 		selected_id = me_index2id(ctrlopt_entries, CTRLOPT_ENTRY_COUNT, menu_sel);
-		if (inp & (BTN_LEFT|BTN_RIGHT)) // multi choise
-			me_process(ctrlopt_entries, CTRLOPT_ENTRY_COUNT, selected_id, (inp&BTN_RIGHT) ? 1 : 0);
-		if (inp & BTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if (inp & BTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
-		if (inp & BTN_CIRCLE) {
+		if (inp & (PBTN_LEFT|PBTN_RIGHT)) // multi choise
+			me_process(ctrlopt_entries, CTRLOPT_ENTRY_COUNT, selected_id, (inp&PBTN_RIGHT) ? 1 : 0);
+		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		if (inp & PBTN_CIRCLE) {
 			int is_6button = PicoOpt & POPT_6BTN_PAD;
 			switch (selected_id) {
 				case MA_CTRL_PLAYER1: key_config_loop(me_ctrl_actions, is_6button ? 15 : 11, 0); return;
@@ -1117,7 +1117,7 @@ static void kc_sel_loop(void)
 				default: return;
 			}
 		}
-		if (inp & BTN_X) return;
+		if (inp & PBTN_X) return;
 	}
 }
 
@@ -1223,14 +1223,14 @@ static void cd_menu_loop_options(void)
 	for (;;)
 	{
 		draw_cd_menu_options(menu_sel, &bios_names);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_X|BTN_CIRCLE|BTN_START, 0);
-		if (inp & BTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if (inp & BTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE|PBTN_START, 0);
+		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(cdopt_entries, CDOPT_ENTRY_COUNT, menu_sel);
-		if (inp & (BTN_LEFT|BTN_RIGHT)) { // multi choise
-			if (!me_process(cdopt_entries, CDOPT_ENTRY_COUNT, selected_id, (inp&BTN_RIGHT) ? 1 : 0) &&
+		if (inp & (PBTN_LEFT|PBTN_RIGHT)) { // multi choise
+			if (!me_process(cdopt_entries, CDOPT_ENTRY_COUNT, selected_id, (inp&PBTN_RIGHT) ? 1 : 0) &&
 			    selected_id == MA_CDOPT_READAHEAD) {
-				if (inp & BTN_LEFT) {
+				if (inp & PBTN_LEFT) {
 					PicoCDBuffers >>= 1;
 					if (PicoCDBuffers < 64) PicoCDBuffers = 0;
 				} else {
@@ -1240,12 +1240,12 @@ static void cd_menu_loop_options(void)
 				}
 			}
 		}
-		if (inp & BTN_CIRCLE) // toggleable options
+		if (inp & PBTN_CIRCLE) // toggleable options
 			if (!me_process(cdopt_entries, CDOPT_ENTRY_COUNT, selected_id, 1) &&
 			    selected_id == MA_CDOPT_DONE) {
 				return;
 			}
-		if (inp & BTN_START) {
+		if (inp & PBTN_START) {
 			switch (selected_id) { // BIOS testers
 				case MA_CDOPT_TESTBIOS_USA:
 					if (emu_findBios(4, &bios)) { // test US
@@ -1272,7 +1272,7 @@ static void cd_menu_loop_options(void)
 					break;
 			}
 		}
-		if (inp & BTN_X) return;
+		if (inp & PBTN_X) return;
 	}
 }
 
@@ -1413,23 +1413,23 @@ static void dispmenu_loop_options(void)
 	for (;;)
 	{
 		draw_dispmenu_options(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_X|BTN_CIRCLE, 0);
-		if (inp & BTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if (inp & BTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(opt3_entries, OPT3_ENTRY_COUNT, menu_sel);
 
-		if (inp & (BTN_LEFT|BTN_RIGHT)) // multi choise
+		if (inp & (PBTN_LEFT|PBTN_RIGHT)) // multi choise
 		{
 			float *setting = NULL;
 			int tmp;
-			me_process(opt3_entries, OPT3_ENTRY_COUNT, selected_id, (inp&BTN_RIGHT) ? 1 : 0);
+			me_process(opt3_entries, OPT3_ENTRY_COUNT, selected_id, (inp&PBTN_RIGHT) ? 1 : 0);
 			switch (selected_id) {
 				case MA_OPT3_FILTERING:
 					menu_opt3_preview();
 					break;
 				case MA_OPT3_VSYNC:
 				    tmp = ((currentConfig.EmuOpt>>13)&1) | ((currentConfig.EmuOpt>>15)&2);
-					tmp = (inp & BTN_LEFT) ? (tmp>>1) : ((tmp<<1)|1);
+					tmp = (inp & PBTN_LEFT) ? (tmp>>1) : ((tmp<<1)|1);
 					if (tmp > 3) tmp = 3;
 					currentConfig.EmuOpt &= ~0x12000;
 					currentConfig.EmuOpt |= ((tmp&2)<<15) | ((tmp&1)<<13);
@@ -1437,15 +1437,15 @@ static void dispmenu_loop_options(void)
 				default: break;
 			}
 			if (setting != NULL) {
-				while ((inp = ps2_pad_read_all()) & (BTN_LEFT|BTN_RIGHT)) {
-					*setting += (inp & BTN_LEFT) ? -0.01 : 0.01;
+				while ((inp = ps2_pad_read_all()) & (PBTN_LEFT|PBTN_RIGHT)) {
+					*setting += (inp & PBTN_LEFT) ? -0.01 : 0.01;
 					if (*setting <= 0) *setting = 0.01;
 					menu_opt3_preview();
 					draw_dispmenu_options(menu_sel); // will wait vsync
 				}
 			}
 		}
-		if (inp & BTN_CIRCLE) { // toggleable options
+		if (inp & PBTN_CIRCLE) { // toggleable options
 			me_process(opt3_entries, OPT3_ENTRY_COUNT, selected_id, 1);
 			switch (selected_id) {
 				case MA_OPT3_DONE:
@@ -1456,7 +1456,7 @@ static void dispmenu_loop_options(void)
 				default: break;
 			}
 		}
-		if (inp & BTN_X){
+		if (inp & PBTN_X){
 			if(HandleDispModeSelection(VideoModeSetting, OldVideoModeSetting)==0) return;
 		}
 	}
@@ -1507,20 +1507,20 @@ static void amenu_loop_options(void)
 	for(;;)
 	{
 		draw_amenu_options(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_X|BTN_CIRCLE, 0);
-		if (inp & BTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if (inp & BTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(opt2_entries, OPT2_ENTRY_COUNT, menu_sel);
-		if (inp & (BTN_LEFT|BTN_RIGHT)) { // multi choise
-			me_process(opt2_entries, OPT2_ENTRY_COUNT, selected_id, (inp&BTN_RIGHT) ? 1 : 0);
+		if (inp & (PBTN_LEFT|PBTN_RIGHT)) { // multi choise
+			me_process(opt2_entries, OPT2_ENTRY_COUNT, selected_id, (inp&PBTN_RIGHT) ? 1 : 0);
 		}
-		if (inp & BTN_CIRCLE) { // toggleable options
+		if (inp & PBTN_CIRCLE) { // toggleable options
 			if (!me_process(opt2_entries, OPT2_ENTRY_COUNT, selected_id, 1) &&
 			    selected_id == MA_OPT2_DONE) {
 				return;
 			}
 		}
-		if (inp & BTN_X) return;
+		if (inp & PBTN_X) return;
 	}
 }
 
@@ -1680,12 +1680,12 @@ static int menu_loop_options(void)
 	while (1)
 	{
 		draw_menu_options(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_LEFT|BTN_RIGHT|BTN_X|BTN_CIRCLE, 0);
-		if (inp & BTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if (inp & BTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(opt_entries, OPT_ENTRY_COUNT, menu_sel);
-		if (inp & (BTN_LEFT|BTN_RIGHT)) { // multi choise
-			if (!me_process(opt_entries, OPT_ENTRY_COUNT, selected_id, (inp&BTN_RIGHT) ? 1 : 0)) {
+		if (inp & (PBTN_LEFT|PBTN_RIGHT)) { // multi choise
+			if (!me_process(opt_entries, OPT_ENTRY_COUNT, selected_id, (inp&PBTN_RIGHT) ? 1 : 0)) {
 				switch (selected_id) {
 					case MA_OPT_RENDERER:
 #ifndef ALLOW_16B_RENDERER_USE
@@ -1702,14 +1702,14 @@ static int menu_loop_options(void)
 #endif
 						break;
 					case MA_OPT_SOUND_QUALITY:
-						PsndRate = sndrate_prevnext(PsndRate, inp & BTN_RIGHT);
+						PsndRate = sndrate_prevnext(PsndRate, inp & PBTN_RIGHT);
 						break;
 					case MA_OPT_REGION:
-						region_prevnext(inp & BTN_RIGHT);
+						region_prevnext(inp & PBTN_RIGHT);
 						break;
 					case MA_OPT_CONFIRM_STATES: {
 							 int n = ((currentConfig.EmuOpt>>9)&1) | ((currentConfig.EmuOpt>>10)&2);
-							 n += (inp & BTN_LEFT) ? -1 : 1;
+							 n += (inp & PBTN_LEFT) ? -1 : 1;
 							 if (n < 0) n = 0; else if (n > 3) n = 3;
 							 n |= n << 1; n &= ~2;
 							 currentConfig.EmuOpt &= ~0xa00;
@@ -1717,7 +1717,7 @@ static int menu_loop_options(void)
 							 break;
 						 }
 					case MA_OPT_SAVE_SLOT:
-						 if (inp & BTN_RIGHT) {
+						 if (inp & PBTN_RIGHT) {
 							 state_slot++; if (state_slot > 9) state_slot = 0;
 						 } else {state_slot--; if (state_slot < 0) state_slot = 9;
 						 }
@@ -1725,7 +1725,7 @@ static int menu_loop_options(void)
 					case MA_OPT_SAVECFG:
 					case MA_OPT_SAVECFG_GAME:
 					case MA_OPT_LOADCFG:
-						 config_slot += (inp&BTN_RIGHT) ? 1 : -1;
+						 config_slot += (inp&PBTN_RIGHT) ? 1 : -1;
 						 if (config_slot > 9) config_slot = 0;
 						 if (config_slot < 0) config_slot = 9;
 						 me_enable(opt_entries, OPT_ENTRY_COUNT, MA_OPT_LOADCFG, config_slot != config_slot_current);
@@ -1738,7 +1738,7 @@ static int menu_loop_options(void)
 				}
 			}
 		}
-		if (inp & BTN_CIRCLE) {
+		if (inp & PBTN_CIRCLE) {
 			if (!me_process(opt_entries, OPT_ENTRY_COUNT, selected_id, 1))
 			{
 				switch (selected_id)
@@ -1776,7 +1776,7 @@ static int menu_loop_options(void)
 				}
 			}
 		}
-		if(inp & BTN_X) {
+		if(inp & PBTN_X) {
 			menu_options_save();
 			return 0;  // done (update, no write)
 		}
@@ -1874,29 +1874,29 @@ static void menu_loop_root(void)
 	/* make sure action buttons are not pressed on entering menu */
 	draw_menu_root(menu_sel);
 
-	while (ps2_pad_read_all() & (BTN_X|BTN_CIRCLE|BTN_SELECT)) {};
+	while (ps2_pad_read_all() & (PBTN_X|PBTN_CIRCLE|PBTN_SELECT)) {};
 
 	for (;;)
 	{
 		draw_menu_root(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_X|BTN_CIRCLE|BTN_SELECT|BTN_L1|BTN_R1, 0);
-		if(inp & BTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if(inp & BTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
-		if((inp & (BTN_L1|BTN_R1)) == (BTN_L1|BTN_R1)) debug_menu_loop();
-		if( inp & (BTN_SELECT|BTN_X)) {
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_X|PBTN_CIRCLE|PBTN_SELECT|PBTN_L1|PBTN_R1, 0);
+		if(inp & PBTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if(inp & PBTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		if((inp & (PBTN_L1|PBTN_R1)) == (PBTN_L1|PBTN_R1)) debug_menu_loop();
+		if( inp & (PBTN_SELECT|PBTN_X)) {
 			if (rom_loaded) {
-				while (ps2_pad_read_all() & (BTN_SELECT|BTN_X)) {}; // wait until released
+				while (ps2_pad_read_all() & (PBTN_SELECT|PBTN_X)) {}; // wait until released
 				engineState = PGS_Running;
 				break;
 			}
 		}
-		if(inp & BTN_CIRCLE)  {
+		if(inp & PBTN_CIRCLE)  {
 			menuErrorMsg[0] = 0; // clear error msg
 			switch (me_index2id(main_entries, MAIN_ENTRY_COUNT, menu_sel))
 			{
 				case MA_MAIN_RESUME_GAME:
 					if (rom_loaded) {
-						while (ps2_pad_read_all() & BTN_CIRCLE) {};
+						while (ps2_pad_read_all() & PBTN_CIRCLE) {};
 						engineState = PGS_Running;
 						return;
 					}
@@ -1913,7 +1913,7 @@ static void menu_loop_root(void)
 					if (rom_loaded) {
 						if(savestate_menu_loop(1))
 							continue;
-						while (ps2_pad_read_all() & BTN_CIRCLE) {};
+						while (ps2_pad_read_all() & PBTN_CIRCLE) {};
 						engineState = PGS_Running;
 						return;
 					}
@@ -1921,7 +1921,7 @@ static void menu_loop_root(void)
 				case MA_MAIN_RESET_GAME:
 					if (rom_loaded) {
 						emu_ResetGame();
-						while (ps2_pad_read_all() & BTN_CIRCLE) {};
+						while (ps2_pad_read_all() & PBTN_CIRCLE) {};
 						engineState = PGS_Running;
 						return;
 					}
@@ -1957,8 +1957,8 @@ static void menu_loop_root(void)
 				case MA_MAIN_CREDITS:
 					draw_menu_credits();
 					inp = 0;
-					while (!(inp & (BTN_X|BTN_CIRCLE)))
-						inp = wait_for_input(BTN_X|BTN_CIRCLE, 0);
+					while (!(inp & (PBTN_X|PBTN_CIRCLE)))
+						inp = wait_for_input(PBTN_X|PBTN_CIRCLE, 0);
 					break;
 				case MA_MAIN_EXIT:
 					engineState = PGS_Quit;
@@ -2115,15 +2115,15 @@ int menu_loop_tray(void)
 
 	/* make sure action buttons are not pressed on entering menu */
 	draw_menu_tray(menu_sel);
-	while (ps2_pad_read_all() & BTN_CIRCLE) {};
+	while (ps2_pad_read_all() & PBTN_CIRCLE) {};
 
 	for (;;)
 	{
 		draw_menu_tray(menu_sel);
-		inp = wait_for_input(BTN_UP|BTN_DOWN|BTN_CIRCLE, 0);
-		if(inp & BTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if(inp & BTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
-		if(inp & BTN_CIRCLE)  {
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_CIRCLE, 0);
+		if(inp & PBTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if(inp & PBTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		if(inp & PBTN_CIRCLE)  {
 			switch (menu_sel) {
 				case 0: // select image
 					selfname = romsel_loop(curr_path);
@@ -2189,7 +2189,7 @@ static int menu_loop_video_mode(unsigned short int NewVideoMode, unsigned short 
 
 	/* make sure action buttons are not pressed on entering menu */
 	draw_menu_video_mode(menu_sel, TimeLeft);
-	while (ps2_pad_read_all() & BTN_CIRCLE) {};
+	while (ps2_pad_read_all() & PBTN_CIRCLE) {};
 
 	StartTicks=ps2_GetTicksInUsec();
 	OldPad=0;
@@ -2212,9 +2212,9 @@ static int menu_loop_video_mode(unsigned short int NewVideoMode, unsigned short 
 		inp = NewPad&~OldPad;
 		OldPad=NewPad;
 
-		if(inp & BTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
-		if(inp & BTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
-		if(inp & BTN_CIRCLE)  {
+		if(inp & PBTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
+		if(inp & PBTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
+		if(inp & PBTN_CIRCLE)  {
 			switch (menu_sel) {
 				case 0: // No
 					result=0;
@@ -2237,7 +2237,7 @@ end:
 		menu_uploadGraphics();
 	}
 
-	while (ps2_pad_read_all() & BTN_CIRCLE) {};
+	while (ps2_pad_read_all() & PBTN_CIRCLE) {};
 
 	return result;
 }
