@@ -496,7 +496,7 @@ static void sound_init(void)
 		lprintf("CreateThread failed: %d\n", sound_thread_id);
 }
 
-static void sound_prepare(void)
+void emu_startSound(void)
 {
 	static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
 	int stereo;
@@ -534,10 +534,18 @@ static void sound_prepare(void)
 	WakeupThread(sound_thread_id);
 }
 
-static void sound_end(void)
+void emu_endSound(void)
 {
 	sound_thread_stop=1;
 	WakeupThread(sound_thread_id);
+}
+
+/* wait until we can write more sound */
+void emu_waitSound(void)
+{
+	// TODO: test this
+	while (!sound_thread_exit && samples_made - samples_done > samples_block * 4)
+		DelayThread(10);
 }
 
 static void sound_deinit(void)
@@ -817,7 +825,7 @@ void emu_Loop(void)
 	PsndOut = NULL;
 	if (currentConfig.EmuOpt & 4)
 	{
-		sound_prepare();
+        emu_startSound();
 	}
 
 	// loop?
@@ -955,7 +963,7 @@ void emu_Loop(void)
 
 	if (PsndOut != NULL) {
 		PsndOut = NULL;
-		sound_end();
+        emu_endSound();
 	}
 
 	// save SRAM
