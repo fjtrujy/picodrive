@@ -51,6 +51,20 @@ static void custom_write(FILE *f, const menu_entry *me, int no_def)
 	switch (me->id)
 	{
 		/* TODO: this should be rm'd when PSP menu is converted */
+		case MA_OPT2_GAMMA:
+			if (no_def && defaultConfig.gamma == currentConfig.gamma) return;
+			fprintf(f, "Gamma correction = %.3f", (double)currentConfig.gamma / 100.0);
+			break;
+		case MA_OPT2_SQUIDGEHACK:
+			if (no_def && !((defaultConfig.EmuOpt^currentConfig.EmuOpt)&0x0010)) return;
+			fprintf(f, "Squidgehack = %i", (currentConfig.EmuOpt&0x0010)>>4);
+			break;
+		case MA_CDOPT_READAHEAD:
+			if (no_def && defaultConfig.s_PicoCDBuffers == PicoCDBuffers) return;
+			sprintf(str24, "%i", PicoCDBuffers * 2);
+			fprintf(f, "ReadAhead buffer = %s", str24);
+			break;
+		/* PSP */
 		case MA_OPT3_SCALE:
 			if (no_def && defaultConfig.scale == currentConfig.scale) return;
 			fprintf(f, "Scale factor = %.2f", currentConfig.scale);
@@ -400,7 +414,7 @@ next:
 		keys_write(fn, strbind, t, binds, no_defaults);
 	}
 
-#ifndef PSP
+#if !defined(PSP) || !defined(_EE)
 	if (section == NULL)
 		fprintf(fn, "Sound Volume = %i" NL, currentConfig.volume);
 #endif
@@ -629,6 +643,8 @@ static int custom_read(menu_entry *me, const char *var, const char *val)
 				return 0;
 			return 1;
 
+#elif defined(_EE)
+			if (strcasecmp(var, "_EE CPU clock") != 0) return 0;
 		case MA_OPT2_GAMMA:
 			if (strcasecmp(var, "Gamma correction") != 0) return 0;
 			currentConfig.gamma = (int) (atof(val) * 100.0);

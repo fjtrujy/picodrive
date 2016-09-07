@@ -18,14 +18,14 @@
 #include <gsKit.h>
 #include <libpad.h>
 
-#include "ps2.h"
 #include "emu.h"
 #include "menu.h"
 #include "mp3.h"
-#include "../common/menu.h"
 #include "../common/emu.h"
+#include "../common/menu.h"
 #include "../common/readpng.h"
-#include "../common/lprintf.h"
+#include "../common/input.h"
+#include "../common/common.h"
 #include "version.h"
 
 #include <pico/pico_int.h>
@@ -104,15 +104,15 @@ static void menu_uploadGraphics(void){
 void menu_darken_bg(void *dst, const void *src, int pixels, int darker);
 static void menu_prepare_bg(int use_game_bg, int use_fg);
 
-unsigned int wait_for_input(unsigned int interesting, int is_key_config)
+/* wait for input, do autorepeat */
+int wait_for_input(int interesting)
 {
 	unsigned int ret;
 	static int repeats = 0, wait = 50;
 	int release = 0, count, i;
 	static unsigned int inp_prev = 0;
 
-	if (!is_key_config)
-		interesting |= (interesting & 0xf0) << 24; // also use analog
+    interesting |= (interesting & 0xf0) << 24; // also use analog
 
 	if (repeats == 2 || repeats == 4) wait /= 2;
 	if (repeats == 6) wait = 15;
@@ -133,9 +133,8 @@ unsigned int wait_for_input(unsigned int interesting, int is_key_config)
 	}
 	inp_prev = ret;
 
-	if (!is_key_config)
-		ret |= (ret & (PBTN_NUB_L_UP|PBTN_NUB_L_RIGHT|PBTN_NUB_L_DOWN|PBTN_NUB_L_LEFT|PBTN_NUB_R_UP|PBTN_NUB_R_RIGHT|PBTN_NUB_R_DOWN|PBTN_NUB_R_LEFT)) >> 24; // use analog as d-pad
-
+	ret |= (ret & (PBTN_NUB_L_UP|PBTN_NUB_L_RIGHT|PBTN_NUB_L_DOWN|PBTN_NUB_L_LEFT|PBTN_NUB_R_UP|PBTN_NUB_R_RIGHT|PBTN_NUB_R_DOWN|PBTN_NUB_R_LEFT)) >> 24; // use analog as d-pad
+		
 	// we don't need diagonals in menus
 	if ((ret&PBTN_UP)   && (ret&PBTN_LEFT))  ret &= ~PBTN_LEFT;
 	if ((ret&PBTN_UP)   && (ret&PBTN_RIGHT)) ret &= ~PBTN_RIGHT;
@@ -544,7 +543,7 @@ static char *romsel_loop(char *curr_path)
 	for (;;)
 	{
 		draw_dirlist(curr_path, namelist, n, sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE);
 		if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-1; }
 		if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
 		if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
@@ -619,7 +618,7 @@ static char *romsel_hddpart_loop(char *curr_path)
 	for (;;)
 	{
 		draw_devicelist(curr_path, namelist, n, sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE);
 		if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
 		if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
 		if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
@@ -693,7 +692,7 @@ static char *romsel_device_loop(char *curr_path)
 	for (;;)
 	{
 		draw_devicelist(curr_path, namelist, n, sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE);
 		if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
 		if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
 		if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
@@ -759,7 +758,7 @@ static void patches_menu_loop(void)
 	for(;;)
 	{
 		draw_patchlist(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L1|PBTN_R1|PBTN_X|PBTN_CIRCLE);
 		if(inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = PicoPatchCount; }
 		if(inp & PBTN_DOWN) { menu_sel++; if (menu_sel > PicoPatchCount) menu_sel = 0; }
 		if(inp &(PBTN_LEFT|PBTN_L1))  { menu_sel-=10; if (menu_sel < 0) menu_sel = 0; }
@@ -888,7 +887,7 @@ static int savestate_menu_loop(int is_loading)
 	for(;;)
 	{
 		draw_savestate_menu(menu_sel, is_loading);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_X|PBTN_CIRCLE);
 		if(inp & PBTN_UP  ) {
 			do {
 				menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max;
@@ -949,7 +948,7 @@ static void unbind_action(int player_idx, int action)
 		currentConfig.JoyBinds[player_idx][i] &= ~action;
 }
 
-static int count_bound_keys(int action, int player_idx)
+static int count_bound_keys(int dev_id, int action_mask, int player_idx)
 {
 	int i, keys = 0;
 	unsigned int key_binding;
@@ -957,13 +956,14 @@ static int count_bound_keys(int action, int player_idx)
 	for (i = 0; i < 32; i++)
 	{
 		key_binding=(player_idx>=0)?currentConfig.JoyBinds[player_idx][i]:currentConfig.JoyBinds[0][i]|currentConfig.JoyBinds[1][i];
-		if (key_binding & action) keys++;
+		if (key_binding & action_mask) keys++;
 	}
 
 	return keys;
 }
 
-static void draw_key_config(const me_bind_action *opts, int opt_cnt, int player_idx, int sel)
+static void draw_key_config(const me_bind_action *opts, int opt_cnt, int player_idx,
+                            int sel, int is_bind)
 {
 	int x, y, tl_y = 40, i;
 
@@ -1004,8 +1004,8 @@ static void key_config_loop(const me_bind_action *opts, int opt_cnt, int player_
 
 	for (;;)
 	{
-		draw_key_config(opts, opt_cnt, player_idx, sel);
-		inp = wait_for_input(CONFIGURABLE_KEYS|PBTN_SELECT, 1);
+		draw_key_config(opts, opt_cnt, player_idx, sel, 0);
+		inp = wait_for_input(CONFIGURABLE_KEYS|PBTN_SELECT);
 		if (!(inp & PBTN_SELECT)) {
 			prev_select = 0;
 			if(inp & PBTN_UP  ) { sel--; if (sel < 0) sel = menu_sel_max; continue; }
@@ -1023,7 +1023,7 @@ static void key_config_loop(const me_bind_action *opts, int opt_cnt, int player_
 		inp &= ~PBTN_SELECT;
 		for (i = 0; i < 32; i++)
 			if (inp & (1 << i)) {
-				if (count_bound_keys(opts[sel].mask, player_idx) >= 2)
+				if (count_bound_keys(0, opts[sel].mask, player_idx) >= 2)
 				{
 					// allow to unbind only
 					if(player_idx >= 0){
@@ -1100,7 +1100,7 @@ static void kc_sel_loop(void)
 	while (1)
 	{
 		draw_kc_sel(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE);
 		selected_id = me_index2id(ctrlopt_entries, CTRLOPT_ENTRY_COUNT, menu_sel);
 		if (inp & (PBTN_LEFT|PBTN_RIGHT)) // multi choise
 			me_process(ctrlopt_entries, CTRLOPT_ENTRY_COUNT, selected_id, (inp&PBTN_RIGHT) ? 1 : 0);
@@ -1223,7 +1223,7 @@ static void cd_menu_loop_options(void)
 	for (;;)
 	{
 		draw_cd_menu_options(menu_sel, &bios_names);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE|PBTN_START, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE|PBTN_START);
 		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
 		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(cdopt_entries, CDOPT_ENTRY_COUNT, menu_sel);
@@ -1413,7 +1413,7 @@ static void dispmenu_loop_options(void)
 	for (;;)
 	{
 		draw_dispmenu_options(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE);
 		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
 		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(opt3_entries, OPT3_ENTRY_COUNT, menu_sel);
@@ -1507,7 +1507,7 @@ static void amenu_loop_options(void)
 	for(;;)
 	{
 		draw_amenu_options(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE);
 		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
 		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(opt2_entries, OPT2_ENTRY_COUNT, menu_sel);
@@ -1680,7 +1680,7 @@ static int menu_loop_options(void)
 	while (1)
 	{
 		draw_menu_options(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_X|PBTN_CIRCLE);
 		if (inp & PBTN_UP  ) { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
 		if (inp & PBTN_DOWN) { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		selected_id = me_index2id(opt_entries, OPT_ENTRY_COUNT, menu_sel);
@@ -1792,7 +1792,7 @@ static void draw_menu_credits(void)
 	menu_draw_begin();
 
 	text_out16(tl_x, 16+10, "PicoDrive v" VERSION " (c) notaz, 2006-2008");
-	text_out16(tl_x, 16+26, "PlayStation 2 port v" PORT_VERSION);
+	text_out16(tl_x, 16+26, "PlayStation 2 port v" MINOR_VERSION);
 
 	y = tl_y;
 	text_out16(tl_x, y, "Credits:");
@@ -1836,7 +1836,7 @@ static void draw_menu_root(int menu_sel)
 
 	menu_draw_begin();
 
-	text_out16(tl_x, 48, "PicoDrive v" PORT_VERSION " (v" VERSION ")");
+	text_out16(tl_x, 48, "PicoDrive v" VERSION " (v" MINOR_VERSION ")");
 
 	menu_draw_selection(tl_x - 16, tl_y + menu_sel*10, 146);
 
@@ -1879,7 +1879,7 @@ static void menu_loop_root(void)
 	for (;;)
 	{
 		draw_menu_root(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_X|PBTN_CIRCLE|PBTN_SELECT|PBTN_L1|PBTN_R1, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_X|PBTN_CIRCLE|PBTN_SELECT|PBTN_L1|PBTN_R1);
 		if(inp & PBTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
 		if(inp & PBTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		if((inp & (PBTN_L1|PBTN_R1)) == (PBTN_L1|PBTN_R1)) debug_menu_loop();
@@ -1958,7 +1958,7 @@ static void menu_loop_root(void)
 					draw_menu_credits();
 					inp = 0;
 					while (!(inp & (PBTN_X|PBTN_CIRCLE)))
-						inp = wait_for_input(PBTN_X|PBTN_CIRCLE, 0);
+						inp = wait_for_input(PBTN_X|PBTN_CIRCLE);
 					break;
 				case MA_MAIN_EXIT:
 					engineState = PGS_Quit;
@@ -2120,7 +2120,7 @@ int menu_loop_tray(void)
 	for (;;)
 	{
 		draw_menu_tray(menu_sel);
-		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_CIRCLE, 0);
+		inp = wait_for_input(PBTN_UP|PBTN_DOWN|PBTN_CIRCLE);
 		if(inp & PBTN_UP  )  { menu_sel--; if (menu_sel < 0) menu_sel = menu_sel_max; }
 		if(inp & PBTN_DOWN)  { menu_sel++; if (menu_sel > menu_sel_max) menu_sel = 0; }
 		if(inp & PBTN_CIRCLE)  {
