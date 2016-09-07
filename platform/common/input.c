@@ -327,6 +327,7 @@ again:
 			break;
 		}
 	}
+#elif !defined(_EE)
 
 	drv = &DRV(in_devices[dev_id].drv_id);
 	result = drv->update_keycode(in_devices[dev_id].drv_data, &is_down);
