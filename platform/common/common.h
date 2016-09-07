@@ -123,17 +123,21 @@ void menu_draw_end(void);
 #define PBTN_L		PBTN_L1
 #define PBTN_R		PBTN_R1
 
- unsigned int wait_for_input(unsigned int interesting, int is_key_config);
- void menu_draw_begin(void);
- void menu_darken_bg(void *dst, const void *src, int pixels, int darker);
- void menu_draw_end(void);
+/* menu nav */
+#define PBTN_MOK   PBTN_START
+#define PBTN_MBACK PBTN_SELECT
+
+int wait_for_input(int interesting);
+void menu_draw_begin(void);
+void menu_darken_bg(void *dst, const void *src, int pixels, int darker);
+void menu_draw_end(void);
 
  #define SCREEN_WIDTH ps2_screen_width
  #define SCREEN_HEIGHT ps2_screen_height
  #define SCREEN_BUFFER ps2_screen
 
 #define read_buttons(which) \
-	wait_for_input(which, 0)
+	wait_for_input(which)
 #define read_buttons_async(which) \
 	(ps2_pad_read(which&1, 0))
 #define clear_screen() \

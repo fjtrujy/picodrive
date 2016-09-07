@@ -116,8 +116,9 @@ void emu_Deinit(void)
 		SRam.changed = 0;
 	}
 
-	if (!(currentConfig.EmuOpt & 0x20))
-		config_writelrom(PicoConfigFile);
+	if (!(currentConfig.EmuOpt & EOPT_NO_AUTOSVCFG))
+		emu_writelrom();
+
 
 	PicoExit();
 	sound_deinit();

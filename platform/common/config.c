@@ -91,13 +91,13 @@ static void custom_write(FILE *f, const menu_entry *me, int no_def)
 				!((defaultConfig.EmuOpt^currentConfig.EmuOpt)&0x80)) return;
 			if (PicoOpt&POPT_ALT_RENDERER)
 				str =
-#ifndef PSP
+#if  !defined(PSP) || !defined(_EE)
 				"8bit "
 #endif
 				"fast";
 			else if (currentConfig.EmuOpt&0x80)
 				str =
-#ifndef PSP
+#if  !defined(PSP) || !defined(_EE)
 				"16bit "
 #endif
 				"accurate";
@@ -153,6 +153,8 @@ static void custom_write(FILE *f, const menu_entry *me, int no_def)
 			fprintf(f, "GP2X CPU clocks = %i", currentConfig.CPUclock);
 #elif defined(PSP)
 			fprintf(f, "PSP CPU clock = %i", currentConfig.CPUclock);
+#elif defined(_EE)
+			fprintf(f, "_EE CPU clock = %i", currentConfig.CPUclock);
 #endif
 			break;
 		case MA_OPT2_GAMMA:
@@ -464,7 +466,7 @@ write:
 		keys_write(fn, strbind, t, binds, no_defaults);
 	}
 
-#ifndef PSP
+#if !defined(PSP) || !defined(_EE)
 	if (section == NULL)
 		fprintf(fn, "Sound Volume = %i" NL, currentConfig.volume);
 #endif
@@ -696,6 +698,8 @@ static int custom_read(menu_entry *me, const char *var, const char *val)
 			if (strcasecmp(var, "GP2X CPU clocks") != 0) return 0;
 #elif defined(PSP)
 			if (strcasecmp(var, "PSP CPU clock") != 0) return 0;
+#elif defined(_EE)
+			if (strcasecmp(var, "_EE CPU clock") != 0) return 0;
 #endif
 			currentConfig.CPUclock = atoi(val);
 			return 1;

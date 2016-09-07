@@ -21,6 +21,7 @@
 #include "asm_utils.h"
 #include "../common/emu.h"
 #include "../common/config.h"
+#include "../common/input.h"
 #include "../common/lprintf.h"
 #include <pico/pico_int.h>
 #include <pico/cd/cue.h>
@@ -158,8 +159,8 @@ void emu_Deinit(void)
 		SRam.changed = 0;
 	}
 
-	if (!(currentConfig.EmuOpt & 0x20))
-		config_writelrom(PicoConfigFile);
+	if (!(currentConfig.EmuOpt & EOPT_NO_AUTOSVCFG))
+		emu_writelrom();
 
 	PicoExit();
 	sound_deinit();
