@@ -225,7 +225,7 @@ int in_update_keycode(int *dev_id_out, int *is_down_out, int timeout_ms)
 			break;
 		}
 	}
-#else
+#elif !defined(_EE)
 #error no menu read handlers
 #endif
 

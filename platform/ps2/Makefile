@@ -15,7 +15,7 @@ EE_IOP_OBJS = IOMANX_irx.o FILEXIO_irx.o LIBSD_irx.o AUDSRV_irx.o USBD_irx.o USB
 EE_OBJS := ps2.o io_suppliment.o emu.o menu.o mp3.o asm_utils.o $(EE_IOP_OBJS) main.o
 
 # common
-EE_OBJS += ../common/emu.o ../common/config.o ../common/menu.o ../common/fonts.o ../common/readpng.o
+EE_OBJS += ../common/emu.o ../common/menu.o ../common/config.o ../common/fonts.o ../common/readpng.o ../common/input.o
 
 # Pico
 EE_OBJS += ../../pico/area.o ../../pico/cart.o ../../pico/debug.o ../../pico/memory.o ../../pico/misc.o \
