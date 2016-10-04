@@ -1,3 +1,6 @@
+#ifndef __PS2_H__
+#define __PS2_H__
+
 #define DEFAULT_PATH	"mass:"	//Only paths residing on "basic" devices (devices that don't require mounting) can be specified here, since this system doesn't perform mounting based on the path.
 #define PATH_MAX FILENAME_MAX
 
@@ -11,7 +14,7 @@ void ps2_SetAudioFormat(unsigned int rate);
 
 unsigned int ps2_pad_read(int port, int slot);
 unsigned int ps2_pad_read_all(void);
-unsigned int ps2_GetTicksInUsec(void);
+u32 ps2_GetTicksInUsec(void);
 void DelayThread(unsigned short int msec);
 
 void ps2_loadHDDModules(void);
@@ -75,3 +78,10 @@ void lprintf(const char *fmt, ...);
 //Add-on I/O functions from io_suppliment.c:
 int ps2_remove(const char *file);
 int ps2_mkdir(const char *path, int mode);
+
+struct timeval {
+    u32 tv_sec;
+    u32 tv_usec;
+};
+
+#endif

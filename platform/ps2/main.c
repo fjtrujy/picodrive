@@ -12,15 +12,19 @@
 #include "../common/menu.h"
 #include "../common/emu.h"
 #include "../common/config.h"
+#include "../common/input.h"
 #include "../common/lprintf.h"
 #include "version.h"
 
 int main(int argc, char *argv[])
 {
+    in_init();
 	ps2_init(argc, argv);
 	emu_prepareDefaultConfig();
 	emu_ReadConfig(0, 0);
 	config_readlrom(PicoConfigFile);
+    in_probe();
+    in_debug_dump();
 	emu_Init();
 	menu_init();
 	// moved to emu_Loop(), after CPU clock change..

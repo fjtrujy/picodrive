@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <fileXio.h>
+#include <fileXio_rpc.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "ps2.h"
 

@@ -1,2 +1,2 @@
-#define VERSION "1.51b"
-#define MINOR_VERSION "411"
+#define VERSION "1.52"
+#define MINOR_VERSION "416"
