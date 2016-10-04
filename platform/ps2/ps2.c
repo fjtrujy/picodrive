@@ -497,7 +497,7 @@ unsigned int ps2_pad_read_all(void){
 	return(ps2_pad_read(0, 0)|ps2_pad_read(1, 0));
 }
 
-unsigned int ps2_GetTicksInUsec(void){
+u32 ps2_GetTicksInUsec(void){
 //	return(clock()/(CLOCKS_PER_SEC*1000000UL));	//Broken.
 	return cpu_ticks()/295;
 }

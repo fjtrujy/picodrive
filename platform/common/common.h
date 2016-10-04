@@ -124,11 +124,11 @@ void menu_draw_end(void);
 #define PBTN_R		PBTN_R1
 
 /* menu nav */
-#define PBTN_MOK   PBTN_START
-#define PBTN_MBACK PBTN_SELECT
+#define PBTN_MOK   PBTN_CIRCLE
+#define PBTN_MBACK PBTN_X
 #define PBTN_MA2   (1 <<  6)	/* menu action 2 */
 #define PBTN_MA3   (1 <<  7)
-#define PBTN_MENU  (1 << 10)
+#define PBTN_MENU  PBTN_SELECT
 #define PBTN_CHAR  (1 << 11)	/* character (text input) */
 
 void menu_draw_begin(void);

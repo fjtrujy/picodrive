@@ -232,6 +232,10 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 
 #ifndef _EE
 	gettimeofday(&start, NULL);
+#else
+    start.tv_sec = 0;
+    now.tv_sec = 0;
+    start.tv_usec = ps2_GetTicksInUsec();
 #endif
 	while (1)
 	{
@@ -254,20 +258,18 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 		if (timeout_ms >= 0) {
 #ifndef _EE
 			gettimeofday(&now, NULL);
+#else
+            now.tv_usec = ps2_GetTicksInUsec();
+#endif
 			if ((now.tv_sec - start.tv_sec) * 1000 +
 					(now.tv_usec - start.tv_usec) / 1000 > timeout_ms)
 				break;
-#else
-            if (timeout_ms > ms_counter) {
-                break;
-            } else {
-                ms_counter += 1000;
-            }
-#endif
 		}
 
 #ifndef _EE
 		usleep(10000);
+#else
+        DelayThread(10);
 #endif
 	}
 

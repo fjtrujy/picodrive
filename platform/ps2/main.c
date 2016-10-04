@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 	emu_ReadConfig(0, 0);
 	config_readlrom(PicoConfigFile);
     in_probe();
+    in_debug_dump();
 	emu_Init();
 	menu_init();
 	// moved to emu_Loop(), after CPU clock change..
