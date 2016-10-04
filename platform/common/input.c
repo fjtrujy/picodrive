@@ -185,6 +185,11 @@ int in_update(void)
 				result |= in_gp2x_update(dev->drv_data, dev->binds);
 				break;
 #endif
+#ifdef IN_PS2
+                case IN_DRVID_PS2:
+                    result |= in_ps2_update(dev->drv_data, dev->binds);
+                    break;
+#endif
 			}
 		}
 	}
@@ -223,9 +228,11 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 {
 	struct timeval start, now;
 	int i, is_down, result;
+    int ms_counter = 0;
 
+#ifndef _EE
 	gettimeofday(&start, NULL);
-
+#endif
 	while (1)
 	{
 		for (i = 0; i < in_dev_count; i++) {
@@ -245,13 +252,23 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 		}
 
 		if (timeout_ms >= 0) {
+#ifndef _EE
 			gettimeofday(&now, NULL);
 			if ((now.tv_sec - start.tv_sec) * 1000 +
 					(now.tv_usec - start.tv_usec) / 1000 > timeout_ms)
 				break;
+#else
+            if (timeout_ms > ms_counter) {
+                break;
+            } else {
+                ms_counter += 1000;
+            }
+#endif
 		}
 
+#ifndef _EE
 		usleep(10000);
+#endif
 	}
 
 	return -1;
@@ -285,7 +302,7 @@ int in_update_keycode(int *dev_id_out, int *is_down_out, int timeout_ms)
 		printf("input: failed to find devices to read\n");
 		exit(1);
 	}
-
+#ifndef _EE
 again:
 	/* TODO: move this block to platform/linux */
 	{
@@ -336,7 +353,8 @@ again:
 	 * XXX: timeout restarts.. */
 	if (result == -1)
 		goto again;
-
+#endif
+    
 finish:
 	/* keep track of menu key state, to allow mixing
 	 * in_update_keycode() and in_menu_wait_any() calls */
@@ -713,6 +731,9 @@ void in_init(void)
 #endif
 #ifdef IN_EVDEV
 	in_evdev_init(&in_drivers[IN_DRVID_EVDEV]);
+#endif
+#ifdef IN_PS2
+    in_ps2_init(&in_drivers[IN_DRVID_PS2]);
 #endif
 }
 

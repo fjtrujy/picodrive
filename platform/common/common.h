@@ -126,8 +126,11 @@ void menu_draw_end(void);
 /* menu nav */
 #define PBTN_MOK   PBTN_START
 #define PBTN_MBACK PBTN_SELECT
+#define PBTN_MA2   (1 <<  6)	/* menu action 2 */
+#define PBTN_MA3   (1 <<  7)
+#define PBTN_MENU  (1 << 10)
+#define PBTN_CHAR  (1 << 11)	/* character (text input) */
 
-int wait_for_input(int interesting);
 void menu_draw_begin(void);
 void menu_darken_bg(void *dst, const void *src, int pixels, int darker);
 void menu_draw_end(void);
@@ -136,10 +139,6 @@ void menu_draw_end(void);
  #define SCREEN_HEIGHT ps2_screen_height
  #define SCREEN_BUFFER ps2_screen
 
-#define read_buttons(which) \
-	wait_for_input(which)
-#define read_buttons_async(which) \
-	(ps2_pad_read(which&1, 0))
 #define clear_screen() \
 	ps2_ClearScreen()
 #define darken_screen() \
