@@ -38,8 +38,6 @@ static const char *mp3_fname = NULL;
 static FILE *mp3_handle = NULL;
 static int mp3_src_pos = 0, mp3_src_size = 0;
 
-static int decode_thread(void *arg);
-
 /*
  * The following utility routine performs simple rounding, clipping, and
  * scaling of MAD's high-resolution samples down to 16 bits. It does not

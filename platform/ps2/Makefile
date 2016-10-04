@@ -5,14 +5,14 @@ use_musashi = 0
 use_mz80 = 0
 
 EE_GPVAL = -G0
-EE_CFLAGS += -mno-gpopt -O3 $(EE_GPVAL) -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS
+EE_CFLAGS += -mno-gpopt -O3 $(EE_GPVAL) -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -g -DIN_PS2
 EE_INCS += -I../.. -I. -I$(PS2SDK)/ports/include -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include
 EE_LDFLAGS += -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ee/lib -Tlinkfile -s
 EE_LIBS += -lgskit -ldmakit -lpng -laudsrv -lpad -lm -lz -lcdvd -lmad -lfileXio -lpatches -lc -lkernel
 EE_IOP_OBJS = IOMANX_irx.o FILEXIO_irx.o LIBSD_irx.o AUDSRV_irx.o USBD_irx.o USBHDFSD_irx.o POWEROFF_irx.o DEV9_irx.o ATAD_irx.o HDD_irx.o PFS_irx.o
 
 # frontend and stuff
-EE_OBJS := ps2.o io_suppliment.o emu.o menu.o mp3.o asm_utils.o $(EE_IOP_OBJS) main.o
+EE_OBJS := ps2.o io_suppliment.o emu.o menu.o mp3.o asm_utils.o $(EE_IOP_OBJS) main.o in_ps2.o
 
 # common
 EE_OBJS += ../common/emu.o ../common/menu.o ../common/config.o ../common/fonts.o ../common/readpng.o ../common/input.o
