@@ -35,6 +35,7 @@ void plat_status_msg_clear(void);
 void plat_video_menu_enter(int is_rom_loaded);
 void plat_video_menu_begin(void);
 void plat_video_menu_end(void);
+void plat_video_menu_deinit(void);
 
 void plat_video_wait_vsync(void);
 void plat_video_toggle_renderer(int is_next, int is_menu);

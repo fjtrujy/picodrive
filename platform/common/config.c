@@ -12,6 +12,7 @@
 #include "config.h"
 #include "input.h"
 #include "lprintf.h"
+#include "posix.h"
 
 static char *mystrip(char *str);
 
@@ -239,45 +240,6 @@ static int is_cust_val_default(const menu_entry *me)
 	return 0;
 }
 
-#ifdef _EE
-//Copies the configuration file. I know, there is a fileXioRename function, but I want the PlayStation 2 PicoDrive port to be independent of the I/O library since part is not in the platform-specific area of PicoDrive. The ROM FILEIO and IOMAN modules do not have a rename function, and some devices don't support it (e.g. USBHDFSD).
-int CopyConfigFile(const char *fname, const char *new_fname){
-	FILE *file;
-	void *buffer;
-	int size, result;
-
-	if((file=fopen(fname, "rb"))!=NULL){
-		fseek(file, 0, SEEK_END);
-		size=ftell(file);
-		rewind(file);
-
-		if((buffer=memalign(64, size))!=NULL){
-			if(fread(buffer, 1, size, file)==size){
-				fclose(file);
-
-				if((file=fopen(new_fname, "wb"))!=NULL){
-					result=(fwrite(buffer, 1, size, file)==size)?0:EIO;
-
-					fclose(file);
-				}
-				else result=EIO;
-			}
-			else result=EIO;
-
-			free(buffer);
-		}
-		else result=ENOMEM;
-
-		fclose(file);
-	}
-	else result=ENOENT;
-
-	return result;
-}
-
-int ps2_remove(const char *file);
-#endif
-
 int config_writesect(const char *fname, const char *section)
 {
 	FILE *fo = NULL, *fn = NULL; // old and new
@@ -306,11 +268,7 @@ int config_writesect(const char *fname, const char *section)
 
 		// use 2 files..
 		fclose(fo);
-#ifdef _EE
-		CopyConfigFile(fname, "tmp.cfg");
-#else
 		rename(fname, "tmp.cfg");
-#endif
 		fo = fopen("tmp.cfg", "r");
 		fn = fopen(fname, "w");
 		if (fo == NULL || fn == NULL) goto write;
@@ -340,11 +298,7 @@ int config_writesect(const char *fname, const char *section)
 		if (feof(fo))
 		{
 			fclose(fo); fo = NULL;
-#ifdef _EE
-			ps2_remove("tmp.cfg");
-#else
 			remove("tmp.cfg");
-#endif
 		}
 	}
 	else
@@ -432,11 +386,7 @@ next:
 			fputs(line, fn);
 		}
 		fclose(fo);
-#ifdef _EE
-		ps2_remove("tmp.cfg");
-#else
 		remove("tmp.cfg");
-#endif
 	}
 
 	fclose(fn);
@@ -642,9 +592,6 @@ static int custom_read(menu_entry *me, const char *var, const char *val)
 			} else
 				return 0;
 			return 1;
-
-#elif defined(_EE)
-			if (strcasecmp(var, "_EE CPU clock") != 0) return 0;
 		case MA_OPT2_GAMMA:
 			if (strcasecmp(var, "Gamma correction") != 0) return 0;
 			currentConfig.gamma = (int) (atof(val) * 100.0);

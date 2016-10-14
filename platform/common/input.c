@@ -249,9 +249,9 @@ int in_update(int *result)
 				break;
 #endif
 #ifdef IN_PS2
-                case IN_DRVID_PS2:
-                    result |= in_ps2_update(dev->drv_data, dev->binds);
-                    break;
+            case IN_DRVID_PS2:
+                ret |= in_ps2_update(dev->drv_data, dev->binds, result);
+                break;
 #endif
 			}
 		}
@@ -286,12 +286,6 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 	unsigned int ticks;
 
 	ticks = plat_get_ticks_ms();
-#ifndef _EE
-#else
-    start.tv_sec = 0;
-    now.tv_sec = 0;
-    start.tv_usec = ps2_GetTicksInUsec();
-#endif
 	while (1)
 	{
 		for (i = 0; i < in_dev_count; i++) {
@@ -311,17 +305,9 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 		}
 
 		if (timeout_ms >= 0 && (int)(plat_get_ticks_ms() - ticks) > timeout_ms)
-#ifndef _EE
-#else
-            now.tv_usec = ps2_GetTicksInUsec();
-#endif
 			break;
 
-#ifndef _EE
 		plat_sleep_ms(10);
-#else
-        DelayThread(10);
-#endif
 	}
 
 	return -1;
@@ -358,7 +344,6 @@ int in_update_keycode(int *dev_id_out, int *is_down_out, int timeout_ms)
 		printf("input: failed to find devices to read\n");
 		exit(1);
 	}
-#ifndef _EE
 	while (1)
 	{
 		ret = plat_wait_event(fds_hnds, count, timeout_ms);
@@ -380,7 +365,6 @@ int in_update_keycode(int *dev_id_out, int *is_down_out, int timeout_ms)
 		if (result >= 0)
 			break;
 
-#endif
 		if (timeout_ms >= 0) {
 			unsigned int ticks2 = plat_get_ticks_ms();
 			timeout_ms -= ticks2 - ticks;

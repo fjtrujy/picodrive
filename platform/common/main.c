@@ -6,8 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _EE
 #include <strings.h>
-
+#endif
 #include "menu.h"
 #include "emu.h"
 #include "config.h"

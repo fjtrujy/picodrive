@@ -12,10 +12,10 @@ EE_LIBS += -lgskit -ldmakit -lpng -laudsrv -lpad -lm -lz -lcdvd -lmad -lfileXio 
 EE_IOP_OBJS = IOMANX_irx.o FILEXIO_irx.o LIBSD_irx.o AUDSRV_irx.o USBD_irx.o USBHDFSD_irx.o POWEROFF_irx.o DEV9_irx.o ATAD_irx.o HDD_irx.o PFS_irx.o
 
 # frontend and stuff
-EE_OBJS := ps2.o io_suppliment.o emu.o menu.o mp3.o asm_utils.o $(EE_IOP_OBJS) main.o in_ps2.o
+EE_OBJS := io_suppliment.o emu.o menu.o plat.o mp3.o asm_utils.o $(EE_IOP_OBJS) in_ps2.o
 
 # common
-EE_OBJS += ../common/emu.o ../common/menu.o ../common/config.o ../common/fonts.o ../common/readpng.o ../common/input.o
+EE_OBJS += ../common/emu.o ../common/menu.o ../common/config.o ../common/fonts.o ../common/readpng.o ../common/input.o ../common/main.o
 
 # Pico
 EE_OBJS += ../../pico/area.o ../../pico/cart.o ../../pico/debug.o ../../pico/memory.o ../../pico/misc.o \

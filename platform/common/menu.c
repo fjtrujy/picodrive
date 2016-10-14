@@ -272,34 +272,34 @@ void menu_init(void)
 	emu_make_path(buff, "skin/selector.png", sizeof(buff));
 	readpng(menu_font_data, buff, READPNG_SELECTOR);
 
-	// load custom colors
-	emu_make_path(buff, "skin/skin.txt", sizeof(buff));
-	f = fopen(buff, "r");
-	if (f != NULL)
-	{
-		lprintf("found skin.txt\n");
-		while (!feof(f))
-		{
-			fgets(buff, sizeof(buff), f);
-			if (buff[0] == '#'  || buff[0] == '/')  continue; // comment
-			if (buff[0] == '\r' || buff[0] == '\n') continue; // empty line
-			if (strncmp(buff, "text_color=", 11) == 0)
-			{
-				int tmp = parse_hex_color(buff+11);
-				if (tmp >= 0) menu_text_color = tmp;
-				else lprintf("skin.txt: parse error for text_color\n");
-			}
-			else if (strncmp(buff, "selection_color=", 16) == 0)
-			{
-				int tmp = parse_hex_color(buff+16);
-				if (tmp >= 0) menu_sel_color = tmp;
-				else lprintf("skin.txt: parse error for selection_color\n");
-			}
-			else
-				lprintf("skin.txt: parse error: %s\n", buff);
-		}
-		fclose(f);
-	}
+    // load custom colors
+    emu_make_path(buff, "skin/skin.txt", sizeof(buff));
+    f = fopen(buff, "r");
+    if (f != NULL)
+    {
+        lprintf("found skin.txt\n");
+        while (!feof(f))
+        {
+            fgets(buff, sizeof(buff), f);
+            if (buff[0] == '#'  || buff[0] == '/')  continue; // comment
+            if (buff[0] == '\r' || buff[0] == '\n') continue; // empty line
+            if (strncmp(buff, "text_color=", 11) == 0)
+            {
+                int tmp = parse_hex_color(buff+11);
+                if (tmp >= 0) menu_text_color = tmp;
+                else lprintf("skin.txt: parse error for text_color\n");
+            }
+            else if (strncmp(buff, "selection_color=", 16) == 0)
+            {
+                int tmp = parse_hex_color(buff+16);
+                if (tmp >= 0) menu_sel_color = tmp;
+                else lprintf("skin.txt: parse error for selection_color\n");
+            }
+            else
+                lprintf("skin.txt: parse error: %s\n", buff);
+        }
+        fclose(f);
+    }
 }
 
 
@@ -711,7 +711,11 @@ static unsigned short file2color(const char *fname)
 	return 0xffff;
 }
 
+#ifdef _EE
+static void draw_dirlist(char *curdir, struct my_dirent **namelist, int n, int sel)
+#else
 static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
+#endif
 {
 	int max_cnt, start, i, x, pos;
 
@@ -733,7 +737,11 @@ static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
 		pos = start + i;
 		if (pos < 0)  continue;
 		if (pos >= max_cnt) break;
-		if (namelist[i+1]->d_type == DT_DIR) {
+#ifdef _EE
+        if (FIO_S_ISDIR(namelist[i+1]->d_type)) {
+#else
+        if (namelist[i+1]->d_type == DT_DIR) {
+#endif
 			smalltext_out16(x, pos * me_sfont_h, "/", 0xfff6);
 			smalltext_out16(x + me_sfont_w, pos * me_sfont_h, namelist[i+1]->d_name, 0xfff6);
 		} else {
@@ -745,12 +753,149 @@ static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
 	plat_video_menu_end();
 }
 
+#ifdef _EE
+#define APA_FLAG_SUB        0x0001
+    
+static int my_scanpart(const char *dir, struct my_dirent ***namelist_out,
+                       int(*filter)(const struct my_dirent *),
+                       int(*compar)(const void *, const void *))
+{
+    int ret = -1, dir_uid = -1, name_alloc = 4, name_count = 0;
+    struct my_dirent **namelist = NULL, *ent;
+    iox_dirent_t dirent;
+    
+    namelist = malloc(sizeof(*namelist) * name_alloc);
+    if (namelist == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+    
+    // try to read first..
+    dir_uid = fileXioDopen(dir);
+    if (dir_uid < 0)
+    {
+        lprintf("dopen(\"%s\") failed with %i\n", dir, dir_uid);
+        ret=dir_uid;
+        goto fail;
+    }
+    
+    while ((ret = fileXioDread(dir_uid, &dirent)) > 0)
+    {
+        if(!(dirent.stat.attr&APA_FLAG_SUB)){
+            ent = malloc(sizeof(*ent));
+            if (ent == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+            ent->d_type =  FIO_S_IFDIR;    //The partitions shall appear as directories.
+            strncpy(ent->d_name, dirent.name, sizeof(ent->d_name));
+            ent->d_name[sizeof(ent->d_name)-1] = 0;
+            if (filter == NULL || filter(ent))
+                namelist[name_count++] = ent;
+            else free(ent);
+            
+            if (name_count >= name_alloc)
+            {
+                void *tmp;
+                name_alloc *= 2;
+                tmp = realloc(namelist, sizeof(*namelist) * name_alloc);
+                if (tmp == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+                namelist = tmp;
+            }
+        }
+    }
+    
+    // sort
+    if (compar != NULL) qsort(namelist, name_count, sizeof(namelist[0]), compar);
+    
+    // all done.
+    ret = name_count;
+    *namelist_out = namelist;
+    goto end;
+    
+fail:
+    if (namelist != NULL)
+    {
+        while (name_count--)
+            free(namelist[name_count]);
+        free(namelist);
+    }
+end:
+    if (dir_uid >= 0) fileXioDclose(dir_uid);
+    return ret;
+}
+
+static int scandir(const char *dir, struct my_dirent ***namelist_out,
+                      int(*filter)(const struct my_dirent *),
+                      int(*compar)(const void *, const void *))
+{
+    int ret = -1, dir_uid = -1, name_alloc = 4, name_count = 0;
+    struct my_dirent **namelist = NULL, *ent;
+    iox_dirent_t dirent;
+    
+    namelist = malloc(sizeof(*namelist) * name_alloc);
+    if (namelist == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+    
+    // try to read first..
+    dir_uid = fileXioDopen(dir);
+    if (dir_uid < 0)
+    {
+        lprintf("dopen(\"%s\") failed with %i\n", dir, dir_uid);
+        ret=dir_uid;
+        goto fail;
+    }
+    
+    while ((ret = fileXioDread(dir_uid, &dirent)) > 0)
+    {
+        if(!strcmp(dirent.name, ".")) continue; // exclude current dir (".")
+        
+        ent = malloc(sizeof(*ent));
+        if (ent == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+        ent->d_type = dirent.stat.mode;
+        strncpy(ent->d_name, dirent.name, sizeof(ent->d_name));
+        ent->d_name[sizeof(ent->d_name)-1] = 0;
+        if (filter == NULL || filter(ent))
+            namelist[name_count++] = ent;
+        else free(ent);
+        
+        if (name_count >= name_alloc)
+        {
+            void *tmp;
+            name_alloc *= 2;
+            tmp = realloc(namelist, sizeof(*namelist) * name_alloc);
+            if (tmp == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+            namelist = tmp;
+        }
+    }
+    
+    // sort
+    if (compar != NULL && name_count > 2) qsort(&namelist[1], name_count - 1, sizeof(namelist[0]), compar);
+    
+    // all done.
+    ret = name_count;
+    *namelist_out = namelist;
+    goto end;
+    
+fail:
+    if (namelist != NULL)
+    {
+        while (name_count--)
+            free(namelist[name_count]);
+        free(namelist);
+    }
+end:
+    if (dir_uid >= 0) fileXioDclose(dir_uid);
+    return ret;
+}
+#endif
+    
 static int scandir_cmp(const void *p1, const void *p2)
 {
-	struct dirent **d1 = (struct dirent **)p1, **d2 = (struct dirent **)p2;
-	if ((*d1)->d_type == (*d2)->d_type) return alphasort(d1, d2);
-	if ((*d1)->d_type == DT_DIR) return -1; // put before
-	if ((*d2)->d_type == DT_DIR) return  1;
+#ifdef _EE
+    struct my_dirent **d1 = (struct my_dirent **)p1, **d2 = (struct my_dirent **)p2;
+    if ((*d1)->d_type == (*d2)->d_type) return alphasort(d1, d2);
+    if (FIO_S_ISDIR((*d1)->d_type)) return -1; // put before
+    if (FIO_S_ISDIR((*d2)->d_type)) return  1;
+#else
+    struct dirent **d1 = (struct dirent **)p1, **d2 = (struct dirent **)p2;
+    if ((*d1)->d_type == (*d2)->d_type) return alphasort(d1, d2);
+    if ((*d1)->d_type == DT_DIR) return -1; // put before
+    if ((*d2)->d_type == DT_DIR) return  1;
+#endif
 	return alphasort(d1, d2);
 }
 
@@ -759,7 +904,11 @@ static const char *filter_exts[] = {
 	".jpg", ".gpe"
 };
 
+#ifdef _EE
+static int scandir_filter(const struct my_dirent *ent)
+#else
 static int scandir_filter(const struct dirent *ent)
+#endif
 {
 	const char *p;
 	int i;
@@ -778,7 +927,11 @@ static int scandir_filter(const struct dirent *ent)
 
 static char *menu_loop_romsel(char *curr_path, int len)
 {
+#ifdef _EE
+    struct my_dirent **namelist;
+#else
 	struct dirent **namelist;
+#endif
 	int n, inp, sel = 0;
 	char *ret = NULL, *fname = NULL;
 
@@ -831,7 +984,11 @@ rescan:
 		if ((inp & PBTN_MOK) || (inp & (PBTN_MENU|PBTN_MA2)) == (PBTN_MENU|PBTN_MA2))
 		{
 			again:
+#ifdef _EE
+            if (FIO_S_ISREG(namelist[sel+1]->d_type))
+#else
 			if (namelist[sel+1]->d_type == DT_REG)
+#endif
 			{
 				strcpy(rom_fname_reload, curr_path);
 				strcat(rom_fname_reload, "/");
@@ -847,7 +1004,11 @@ rescan:
 				}
 				goto rescan;
 			}
-			else if (namelist[sel+1]->d_type == DT_DIR)
+#ifdef _EE
+			else if (FIO_S_ISDIR(namelist[sel+1]->d_type))
+#else
+            else if (namelist[sel+1]->d_type == DT_DIR)
+#endif
 			{
 				int newlen;
 				char *p, *newdir;
@@ -883,8 +1044,13 @@ rescan:
 				if (tstf != NULL)
 				{
 					if (fread(&tmp, 1, 1, tstf) > 0 || ferror(tstf) == 0)
+#ifdef _EE
+                        namelist[sel+1]->d_type = FIO_S_IFREG;
+                    else	namelist[sel+1]->d_type = FIO_S_IFDIR;
+#else
 						namelist[sel+1]->d_type = DT_REG;
-					else	namelist[sel+1]->d_type = DT_DIR;
+                    else	namelist[sel+1]->d_type = DT_DIR;
+#endif
 					fclose(tstf);
 					goto again;
 				}
@@ -902,6 +1068,202 @@ rescan:
 	return ret;
 }
 
+#ifdef _EE
+static void draw_devicelist(char *curdir, struct my_dirent **namelist, int n, int sel)
+{
+    int start, i, pos;
+    
+    start = 12 - sel;
+    
+    plat_video_menu_begin();
+    
+    if (!rom_loaded) {
+//        menu_darken_bg(ps2_screen, ps2_screen, 320*224, 0);
+    }
+    
+    //    menu_darken_bg((unsigned short int *)ps2_screen + 320*120, (unsigned short int *)ps2_screen + 320*120, 320*8, 0);    //Looks ugly on a TV. What is the exact purpose of darkening a few lines in the middle of the screen? :S
+    
+    if (start - 2 >= 0)
+        smalltext_out16(14, (start - 2)*10, curdir, 0xffff);
+    for (i = 0; i < n; i++) {
+        pos = start + i;
+        if (pos < 0)  continue;
+        if (pos > 21) break;
+        smalltext_out16(14, pos*10, namelist[i]->d_name, 0xEBFF);
+    }
+    text_out16(5, 120, ">");
+    plat_video_menu_end();
+}
+
+static char *romsel_hddpart_loop(char *curr_path)
+{
+    struct my_dirent **namelist;
+    int n, sel = 0;
+    unsigned int inp = 0;
+    char *ret = NULL;
+    
+    n = my_scanpart(curr_path, &namelist, scandir_filter, scandir_cmp);
+    if (n < 0) {
+        return NULL;    //Fall back to the device list.
+    }
+    
+    for (;;)
+    {
+        draw_devicelist(curr_path, namelist, n, sel);
+        inp = in_menu_wait(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L|PBTN_R|PBTN_MBACK|PBTN_MOK, 70);
+        if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
+        if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
+        if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
+        if(inp & PBTN_L)    { sel-=24; if (sel < 0)   sel = 0; }
+        if(inp & PBTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-2; }
+        if(inp & PBTN_R)    { sel+=24; if (sel > n-1) sel = n-2; }
+        if(inp & PBTN_MOK) { // enter dir/select
+            int newlen = strlen(curr_path) + strlen(namelist[sel]->d_name) + 2;
+            char *p, *newdir = malloc(newlen);
+            strcpy(newdir, curr_path);
+            p = newdir + strlen(newdir) - 1;
+            while (*p == '/' && p >= newdir) *p-- = 0;
+            strcat(newdir, namelist[sel]->d_name);
+            //Attempt to mount.
+            fileXioUmount("pfs0:");
+            if(fileXioMount("pfs0:", newdir, FIO_MT_RDWR)>=0){
+                free(newdir);
+                newdir = malloc(7);    //"pfs0:/"
+                strcpy(newdir, "pfs0:/");
+                ret = menu_loop_romsel(newdir, sizeof(rom_fname_loaded));
+            }
+            else{
+                ret=NULL;
+            }
+            
+            free(newdir);
+            if(ret!=NULL) break;
+        }
+        if(inp & PBTN_MBACK) break; // cancel
+    }
+    
+    if (n > 0) {
+        while(n--) free(namelist[n]);
+        free(namelist);
+    }
+    
+    return ret;
+}
+
+#define NUM_SUPPORTED_DEVICES    4
+
+static int GetDeviceList(struct my_dirent ***namelist_out, int(*compar)(const void *, const void *))
+{
+    static const char *devices[NUM_SUPPORTED_DEVICES]={    //cdrom0: cannot be supported because it doesn't support the directory functions.
+        "mc0:",
+        "mc1:",
+        "mass:",
+        "hdd0:"
+    };
+    
+    int ret = -1, name_count = 0;
+    struct my_dirent **namelist = NULL, *ent;
+    
+    namelist = malloc(sizeof(*namelist) * NUM_SUPPORTED_DEVICES);
+    if (namelist == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+    
+    for(; name_count<NUM_SUPPORTED_DEVICES; name_count++){
+        ent = malloc(sizeof(*ent));
+        if (ent == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
+        ent->d_type = FIO_S_IFDIR;    //The devices shall appear as directories.
+        strncpy(ent->d_name, devices[name_count], sizeof(ent->d_name));
+        ent->d_name[sizeof(ent->d_name)-1] = 0;
+        
+        namelist[name_count] = ent;
+    }
+    
+    // sort
+    if (compar != NULL) qsort(namelist, name_count, sizeof(namelist[0]), compar);
+    
+    // all done.
+    ret = name_count;
+    *namelist_out = namelist;
+    goto end;
+    
+fail:
+    if (namelist != NULL)
+    {
+        while (name_count--)
+            free(namelist[name_count]);
+        free(namelist);
+    }
+end:
+    return ret;
+}
+
+static char *romsel_device_loop(char *curr_path)
+{
+    struct my_dirent **namelist;
+    int n, sel = 0;
+    unsigned int inp = 0;
+    char *ret = NULL, *fname;
+    iox_stat_t cpstat;
+    
+    // is this a dir or a full path?
+    if(fileXioGetStat(curr_path, &cpstat)>=0){
+        if (FIO_S_ISREG(cpstat.mode)) { // file
+            char *p;
+            for (p = curr_path + strlen(curr_path) - 1; p > curr_path && *p != '/'; p--);
+            if (p > curr_path) {
+                *p = 0;
+                fname = p+1;
+                
+                if((ret=menu_loop_romsel(curr_path, sizeof(rom_fname_loaded)))!=NULL) return ret;    //CWD to the directory.
+            }
+        }
+        else if (FIO_S_ISDIR(cpstat.mode)){ // dir
+            if((ret=menu_loop_romsel(curr_path, sizeof(rom_fname_loaded)))!=NULL) return ret;    //CWD to the directory.
+        }
+    }
+    
+    //Show device list.
+    if((n = GetDeviceList(&namelist, scandir_cmp))>=0){
+        strcpy(curr_path, "Device list:");
+    }
+    else return NULL;
+    
+    for (;;)
+    {
+        draw_devicelist(curr_path, namelist, n, sel);
+        inp = in_menu_wait(PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L|PBTN_R|PBTN_MBACK|PBTN_MOK, 100);
+        if(inp & PBTN_UP  )  { sel--;   if (sel < 0)   sel = n-2; }
+        if(inp & PBTN_DOWN)  { sel++;   if (sel > n-1) sel = 0; }
+        if(inp & PBTN_LEFT)  { sel-=10; if (sel < 0)   sel = 0; }
+        if(inp & PBTN_L)    { sel-=24; if (sel < 0)   sel = 0; }
+        if(inp & PBTN_RIGHT) { sel+=10; if (sel > n-1) sel = n-2; }
+        if(inp & PBTN_R)    { sel+=24; if (sel > n-1) sel = n-2; }
+        if(inp & PBTN_MOK) { // enter dir/select
+            char *newdir = malloc(strlen(namelist[sel]->d_name) + 2);
+            sprintf(newdir, "%s/", namelist[sel]->d_name);
+            
+            if(!strncmp(namelist[sel]->d_name, "hdd0:", 5)){
+                ps2_loadHDDModules();
+                ret = romsel_hddpart_loop(newdir);
+            }else{
+                ret = menu_loop_romsel(newdir, sizeof(rom_fname_loaded));
+            }
+            
+            free(newdir);
+            if(ret!=NULL) break;
+        }
+        
+        if(inp & PBTN_MBACK) break; // cancel
+    }
+    
+    if (n > 0) {
+        while(n--) free(namelist[n]);
+        free(namelist);
+    }
+    
+    return ret;
+}
+#endif
+    
 // ------------ patch/gg menu ------------
 
 static void draw_patchlist(int sel)
@@ -1825,14 +2187,7 @@ static void debug_menu_loop(void)
 					mplayer_loop();
 				}
 				if ((inp & (PBTN_MA2|PBTN_LEFT)) == (PBTN_MA2|PBTN_LEFT)) {
-#ifdef _EE
-					char cwd[240], path[256];
-					getcwd(cwd, 240);
-					sprintf(path, "%s/dumps", cwd);
-					fileXioMkdir(path, 0777);
-#else
 					mkdir("dumps", 0777);
-#endif
 					PDebugDumpMem();
 					while (inp & PBTN_MA2) inp = in_menu_wait_any(-1);
 					dumped = 1;
@@ -1865,13 +2220,19 @@ static void debug_menu_loop(void)
 static char *romsel_run(void)
 {
 	char *ret, *sel_name;
+    char curr_path[256];
 
 	sel_name = malloc(sizeof(rom_fname_loaded));
 	if (sel_name == NULL)
 		return NULL;
 	strcpy(sel_name, rom_fname_loaded);
 
-	ret = menu_loop_romsel(sel_name, sizeof(rom_fname_loaded));
+#ifdef _EE
+    getcwd(curr_path, 256);
+    ret = romsel_device_loop(curr_path);
+#elif
+    ret = menu_loop_romsel(sel_name, sizeof(rom_fname_loaded));
+#endif
 	free(sel_name);
 	return ret;
 }
@@ -1953,24 +2314,25 @@ void menu_loop(void)
 {
 	static int sel = 0;
 
-	me_enable(e_menu_main, MA_MAIN_RESUME_GAME, rom_loaded);
-	me_enable(e_menu_main, MA_MAIN_SAVE_STATE,  rom_loaded);
-	me_enable(e_menu_main, MA_MAIN_LOAD_STATE,  rom_loaded);
-	me_enable(e_menu_main, MA_MAIN_RESET_GAME,  rom_loaded);
-	me_enable(e_menu_main, MA_MAIN_PATCHES, PicoPatches != NULL);
+    me_enable(e_menu_main, MA_MAIN_RESUME_GAME, rom_loaded);
+    me_enable(e_menu_main, MA_MAIN_SAVE_STATE,  rom_loaded);
+    me_enable(e_menu_main, MA_MAIN_LOAD_STATE,  rom_loaded);
+    me_enable(e_menu_main, MA_MAIN_RESET_GAME,  rom_loaded);
+    me_enable(e_menu_main, MA_MAIN_PATCHES, PicoPatches != NULL);
 
 	plat_video_menu_enter(rom_loaded);
-	in_set_blocking(1);
-	me_loop(e_menu_main, &sel, menu_main_plat_draw);
 
-	if (rom_loaded) {
-		if (engineState == PGS_Menu)
-			engineState = PGS_Running;
-		/* wait until menu, ok, back is released */
-		while (in_menu_wait_any(50) & (PBTN_MENU|PBTN_MOK|PBTN_MBACK));
-	}
+    in_set_blocking(1);
+    me_loop(e_menu_main, &sel, menu_main_plat_draw);
 
-	in_set_blocking(0);
+    if (rom_loaded) {
+        if (engineState == PGS_Menu)
+            engineState = PGS_Running;
+        /* wait until menu, ok, back is released */
+        while (in_menu_wait_any(50) & (PBTN_MENU|PBTN_MOK|PBTN_MBACK));
+    }
+
+    in_set_blocking(0);
 }
 
 // --------- CD tray close menu ----------

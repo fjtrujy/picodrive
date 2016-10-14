@@ -3,8 +3,7 @@
 
 // For commercial use, separate licencing terms must be obtained.
 
-#include <sys/stat.h>
-#include <sys/types.h>
+#include "plat_ps2.h"
 
 #include <kernel.h>
 #include <fileXio_rpc.h>
@@ -14,11 +13,12 @@
 #include <unistd.h>
 #include <limits.h>
 
-#include "ps2.h"
-#include "menu.h"
 #include "emu.h"
 #include "mp3.h"
 #include "asm_utils.h"
+#include "version.h"
+#include "../common/plat.h"
+#include "../common/menu.h"
 #include "../common/emu.h"
 #include "../common/config.h"
 #include "../common/input.h"
@@ -33,26 +33,19 @@
 #define OSD_TXT_PAL_ENT			0xF0	//OSD text palette entry.
 #define OSD_CD_STAT_GREEN_PAL_EN	0xC0	//OSD CD status green LED palette entry
 #define OSD_CD_STAT_RED_PAL_EN		0xD0	//OSD CD status red LED palette entry
+#define SOUND_THREAD_PRIORITY    0x50
 
 //Variables for the emulator core to use.
-extern void *ps2_screen;
-extern unsigned short int ps2_screen_draw_width, ps2_screen_draw_height;
 extern GSTEXTURE FrameBufferTexture;
 unsigned char *PicoDraw2FB;
 
 extern GSGLOBAL *gsGlobal;
 extern void *_gp;
 
-char romFileName[PATH_MAX];
-int engineState = PGS_Menu;
-
 static int combo_keys = 0, combo_acts = 0; // keys and actions which need button combos
-static unsigned int noticeMsgTime = 0;
-int reset_timing = 0; // do we need this?
 
 #define PICO_PEN_ADJUST_X 4
 #define PICO_PEN_ADJUST_Y 2
-static short int pico_pen_x = 320/2, pico_pen_y = 240/2;
 
 static unsigned short int FrameBufferTextureVisibleWidth, FrameBufferTextureVisibleHeight;
 static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleOffsetY;	//From upper left-hand corner.
@@ -60,17 +53,6 @@ static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVi
 static void sound_init(void);
 static void sound_deinit(void);
 static void blit(const char *fps, const char *notice, int lagging_behind);
-
-void emu_noticeMsgUpdated(void)
-{
-	noticeMsgTime = ps2_GetTicksInUsec();
-}
-
-int emu_getMainDir(char *dst, int len)
-{
-	if (len > 0) *dst = 0;
-	return 0;
-}
 
 static void emu_draw(int lagging_behind){
 	// want vsync?
@@ -92,89 +74,33 @@ static void osd_text(int x, const char *text)
 	if(!(currentConfig.EmuOpt&0x80)){
 		//8-bit mode
 		for (h = 8; h>=0; h--) {
-			unsigned char *screen_8 = ps2_screen;
+			unsigned char *screen_8 = g_screen_ptr;
 			memset(&screen_8[x+FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(ScreenHeight-h-1)], OSD_STAT_BLK_PAL_ENT, len);
 		}
-		emu_textOut8(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
+		emu_text_out8(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
 	}
 	else{
 		//16-bit mode
 		for (h = 8; h >= 0; h--) {
 			int pixel_w;
 			for(pixel_w=0; pixel_w<len; pixel_w++){
-				unsigned short int *screen_16=ps2_screen;
+				unsigned short int *screen_16=g_screen_ptr;
 				screen_16[x+pixel_w+FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(ScreenHeight-h-1)]=0x8000;
 			}
 		}
-		emu_textOut16(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
+		emu_text_out16(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
 	}
 }
 
 void emu_msg_cb(const char *msg)
 {
 	osd_text(4, msg);
-	noticeMsgTime =  ps2_GetTicksInUsec() - 2000000;
 
 	/* assumption: emu_msg_cb gets called only when something slow is about to happen */
 	reset_timing = 1;
 }
 
-static void emu_msg_tray_open(void)
-{
-	strcpy(noticeMsg, "CD tray opened");
-	noticeMsgTime = ps2_GetTicksInUsec();
-}
-
-void emu_Init(void)
-{
-	// make dirs for saves, cfgs, etc.
-	ps2_mkdir("mds", 0777);
-	ps2_mkdir("srm", 0777);
-	ps2_mkdir("brm", 0777);
-	ps2_mkdir("cfg", 0777);
-
-	FrameBufferTexture.Width=0;
-	FrameBufferTexture.Height=0;
-	FrameBufferTextureVisibleOffsetX=0;
-	FrameBufferTextureVisibleOffsetY=0;
-	FrameBufferTextureVisibleWidth=0;
-	FrameBufferTextureVisibleHeight=0;
-	FrameBufferTexture.Mem=NULL;
-	FrameBufferTexture.Clut=NULL;
-	PicoDraw2FB=NULL;
-
-	sound_init();
-
-	PicoInit();
-	PicoMessage = emu_msg_cb;
-	PicoMCDopenTray = emu_msg_tray_open;
-	PicoMCDcloseTray = menu_loop_tray;
-}
-
-void emu_Deinit(void)
-{
-	// save SRAM
-	if ((currentConfig.EmuOpt & 1) && SRam.changed) {
-		emu_SaveLoadGame(0, 1);
-		SRam.changed = 0;
-	}
-
-	if (!(currentConfig.EmuOpt & EOPT_NO_AUTOSVCFG))
-		emu_writelrom();
-
-	PicoExit();
-	sound_deinit();
-	if(FrameBufferTexture.Mem!=NULL){
-		free(FrameBufferTexture.Mem);
-		FrameBufferTexture.Mem=NULL;
-	}
-	if(FrameBufferTexture.Clut!=NULL){
-		free(FrameBufferTexture.Clut);
-		FrameBufferTexture.Clut=NULL;
-	}
-}
-
-void emu_prepareDefaultConfig(void)
+void pemu_prep_defconfig(void)
 {
 	unsigned int i;
 
@@ -186,23 +112,6 @@ void emu_prepareDefaultConfig(void)
 	defaultConfig.s_PicoAutoRgnOrder = 0x184; // US, EU, JP
 	defaultConfig.s_PicoCDBuffers = 64;
 	defaultConfig.Frameskip = -1; // auto
-	for(i=0; i<4; i++){
-		defaultConfig.JoyBinds[i][ 4] = 1<<0; // SACB RLDU
-		defaultConfig.JoyBinds[i][ 6] = 1<<1;
-		defaultConfig.JoyBinds[i][ 7] = 1<<2;
-		defaultConfig.JoyBinds[i][ 5] = 1<<3;
-		defaultConfig.JoyBinds[i][14] = 1<<4;
-		defaultConfig.JoyBinds[i][13] = 1<<5;
-		defaultConfig.JoyBinds[i][15] = 1<<6;
-		defaultConfig.JoyBinds[i][ 3] = 1<<7;
-		defaultConfig.JoyBinds[i][12] = 1<<26; // switch rnd
-		defaultConfig.JoyBinds[i][ 8] = 1<<27; // save state
-		defaultConfig.JoyBinds[i][ 9] = 1<<28; // load state
-		defaultConfig.JoyBinds[i][28] = 1<<0; // num "buttons"
-		defaultConfig.JoyBinds[i][30] = 1<<1;
-		defaultConfig.JoyBinds[i][31] = 1<<2;
-		defaultConfig.JoyBinds[i][29] = 1<<3;
-	}
 }
 
 static inline void do_pal_update(void)
@@ -253,21 +162,104 @@ extern void *DrawLineDest;
 
 static int EmuScanSlow8(unsigned int num)
 {
-	DrawLineDest = (unsigned char *)ps2_screen + num*FrameBufferTexture.Width;
+	DrawLineDest = (unsigned char *)g_screen_ptr + num*FrameBufferTexture.Width;
 
 	return 0;
 }
 
 static int EmuScanSlow16(unsigned int num)
 {
-	DrawLineDest = (unsigned short int *)ps2_screen + num*FrameBufferTexture.Width;
+	DrawLineDest = (unsigned short int *)g_screen_ptr + num*FrameBufferTexture.Width;
 
 	return 0;
 }
 
+void pemu_update_display(const char *fps, const char *notice)
+{
+    blit(fps, notice, 0);
+}
+
+unsigned int plat_get_ticks_ms(void)
+{
+    return plat_get_ticks_us()/1000;
+}
+
+unsigned int plat_get_ticks_us(void)
+{
+    return ps2_GetTicksInUsec();
+}
+
+void spend_cycles(int c)
+{
+    DelayThread(c/295);
+}
+
+void plat_wait_till_us(unsigned int us_to)
+{
+    unsigned int now;
+    
+    spend_cycles(1024);
+    now = plat_get_ticks_us();
+    
+    while ((signed int)(us_to - now) > 512)
+    {
+        spend_cycles(1024);
+        now = plat_get_ticks_us();
+    }
+}
+
+void plat_video_wait_vsync(void)
+{
+}
+
+void plat_status_msg_clear(void)
+{
+    int is_8bit = (PicoOpt & POPT_ALT_RENDERER) || !(currentConfig.EmuOpt & EOPT_16BPP);
+    if (currentConfig.EmuOpt & EOPT_WIZ_TEAR_FIX) {
+        /* ugh.. */
+        int i, u, *p;
+        if (is_8bit) {
+            p = (int *)g_screen_ptr + (240-8) / 4;
+            for (u = 320; u > 0; u--, p += 240/4)
+                p[0] = p[1] = 0xe0e0e0e0;
+        } else {
+            p = (int *)g_screen_ptr + (240-8)*2 / 4;
+            for (u = 320; u > 0; u--, p += 240*2/4)
+                p[0] = p[1] = p[2] = p[3] = 0;
+        }
+        return;
+    }
+    
+    if (is_8bit)
+        ps2_memset_all_buffers(320*232, 0xe0, 320*8);
+    else
+        ps2_memset_all_buffers(320*232*2, 0, 320*8*2);
+}
+
+void plat_status_msg_busy_next(const char *msg)
+{
+    plat_status_msg_clear();
+    pemu_update_display("", msg);
+    emu_status_msg("");
+    
+    /* assumption: msg_busy_next gets called only when
+     * something slow is about to happen */
+    reset_timing = 1;
+}
+
+void plat_status_msg_busy_first(const char *msg)
+{
+    ps2_memcpy_all_buffers(g_screen_ptr, 0, 320*240*2);
+    plat_status_msg_busy_next(msg);
+}
+
+void plat_update_volume(int has_changed, int is_up)
+{
+}
+
 static void cd_leds(void)
 {
-	unsigned int reg, col_g, col_r;
+    unsigned int reg, col_g, col_r;
 
 	reg = Pico_mcd->s68k_regs[0];
 
@@ -275,15 +267,15 @@ static void cd_leds(void)
 		// 8-bit modes
 		col_g = (reg & 2) ? 0xc0c0c0c0 : 0xe0e0e0e0;
 		col_r = (reg & 1) ? 0xd0d0d0d0 : 0xe0e0e0e0;
-		*(unsigned int *)((char *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+ 4) =
-		*(unsigned int *)((char *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(3+FrameBufferTextureVisibleOffsetY)+ 4) =
-		*(unsigned int *)((char *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(4+FrameBufferTextureVisibleOffsetY)+ 4) = col_g;
-		*(unsigned int *)((char *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+12) =
-		*(unsigned int *)((char *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(3+FrameBufferTextureVisibleOffsetY)+12) =
-		*(unsigned int *)((char *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(4+FrameBufferTextureVisibleOffsetY)+12) = col_r;
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+ 4) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(3+FrameBufferTextureVisibleOffsetY)+ 4) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(4+FrameBufferTextureVisibleOffsetY)+ 4) = col_g;
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+12) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(3+FrameBufferTextureVisibleOffsetY)+12) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(4+FrameBufferTextureVisibleOffsetY)+12) = col_r;
 	} else {
 		// 16-bit modes
-		unsigned int *p = (unsigned int *)((short *)ps2_screen + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+4);
+		unsigned int *p = (unsigned int *)((short *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+4);
 		unsigned int col_g = (reg & 2) ? 0x83008300 : 0x80008000;
 		unsigned int col_r = (reg & 1) ? 0x80188018 : 0x80008000;
 		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += FrameBufferTexture.Width/2 - 12/2;
@@ -315,7 +307,7 @@ static void blit(const char *fps, const char *notice, int lagging_behind)
 
 static void draw_pico_ptr(void)
 {
-	unsigned char *p = (unsigned char *)ps2_screen;
+	unsigned char *p = (unsigned char *)g_screen_ptr;
 
 	// only if pen enabled and for 8bit mode
 	if (pico_inp_mode == 0 || (currentConfig.EmuOpt&0x80)) return;
@@ -327,7 +319,7 @@ static void draw_pico_ptr(void)
 	p[1023] = 0xe0; p[1024] = 0xf0; p[1025] = 0xe0;
 }
 
-void emu_platformDebugCat(char *str)
+void plat_debug_cat(char *str)
 {
 	strcat(str, (currentConfig.EmuOpt&0x80) ? "soft clut\n" : "hard clut\n");	//TODO: is this valid for this port?
 }
@@ -351,8 +343,8 @@ static void vidResetMode(void)
 	if(!(PicoOpt&0x10)){	//Accurate (line) renderer.
 		FrameBufferTextureVisibleOffsetX=0;	//Nothing to hide here.
 		FrameBufferTextureVisibleOffsetY=0;
-		ps2_screen_width=FrameBufferTexture.Width=320;
-		ps2_screen_height=FrameBufferTexture.Height=(!(Pico.video.reg[1]&8))?224:240;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
+		FrameBufferTexture.Width=320;
+		FrameBufferTexture.Height=(!(Pico.video.reg[1]&8))?224:240;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
 		FrameBufferTextureVisibleWidth=FrameBufferTexture.Width;
 		FrameBufferTextureVisibleHeight=FrameBufferTexture.Height;
 
@@ -388,8 +380,8 @@ static void vidResetMode(void)
 			FrameBufferTextureVisibleHeight=240;
 		}
 
-		ps2_screen_width=FrameBufferTexture.Width=328;
-		ps2_screen_height=FrameBufferTexture.Height=240;
+		FrameBufferTexture.Width=328;
+		FrameBufferTexture.Height=240;
 		FrameBufferTextureVisibleWidth=320;
 
 		FrameBufferTexture.PSM=GS_PSM_T8;
@@ -409,7 +401,7 @@ static void vidResetMode(void)
 	gsKit_setup_tbw(&FrameBufferTexture);
 	FrameBufferTexture.Mem=memalign(128, gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM));
 	FrameBufferTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM), GSKIT_ALLOC_USERBUFFER);
-	DrawLineDest=PicoDraw2FB=ps2_screen=(void*)((unsigned int)FrameBufferTexture.Mem);
+	DrawLineDest=PicoDraw2FB=g_screen_ptr=(void*)((unsigned int)FrameBufferTexture.Mem);
 
 	ps2_ClearScreen();
 
@@ -496,7 +488,7 @@ static void sound_init(void)
 		lprintf("CreateThread failed: %d\n", sound_thread_id);
 }
 
-void emu_startSound(void)
+void pemu_sound_start(void)
 {
 	static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
 	int stereo;
@@ -534,14 +526,14 @@ void emu_startSound(void)
 	WakeupThread(sound_thread_id);
 }
 
-void emu_endSound(void)
+void pemu_sound_stop(void)
 {
 	sound_thread_stop=1;
 	WakeupThread(sound_thread_id);
 }
 
 /* wait until we can write more sound */
-void emu_waitSound(void)
+void pemu_sound_wait(void)
 {
 	// TODO: test this
 	while (!sound_thread_exit && samples_made - samples_done > samples_block * 4)
@@ -577,7 +569,7 @@ static void SkipFrame(void)
 	PicoSkipFrame=0;
 }
 
-void emu_forcedFrame(int opts)
+void pemu_forced_frame(int opts)
 {
 	int po_old = PicoOpt;
 	int eo_old = currentConfig.EmuOpt;
@@ -594,6 +586,9 @@ void emu_forcedFrame(int opts)
 	currentConfig.EmuOpt = eo_old;
 }
 
+void plat_video_toggle_renderer(int is_next, int is_menu)
+{
+}
 
 static void RunEventsPico(unsigned int events, unsigned int keys)
 {
@@ -623,16 +618,15 @@ static void RunEvents(unsigned int which)
 	if (which & 0x1800) // save or load (but not both)
 	{
 		int do_it = 1;
-
-		if ( emu_checkSaveFile(state_slot) &&
+        if ( emu_check_save_file(state_slot) &&
 				(( (which & 0x1000) && (currentConfig.EmuOpt & 0x800)) || // load
 				 (!(which & 0x1000) && (currentConfig.EmuOpt & 0x200))) ) // save
 		{
 			int keys;
 			blit("", (which & 0x1000) ? "LOAD STATE? (X=yes, O=no)" : "OVERWRITE SAVE? (X=yes, O=no)", 0);
-			while( !((keys = ps2_pad_read_all()) & (PBTN_X|PBTN_CIRCLE)) ) {};
-			if (keys & PBTN_CIRCLE) do_it = 0;
-			while(  ((keys = ps2_pad_read_all()) & (PBTN_X|PBTN_CIRCLE)) ) {};// wait for release
+			while( !((keys = ps2_pad_read_all()) & (PBTN_MBACK|PBTN_MOK)) ) {};
+			if (keys & PBTN_MOK) do_it = 0;
+			while(  ((keys = ps2_pad_read_all()) & (PBTN_MBACK|PBTN_MOK)) ) {};// wait for release
 		}
 
 		if (do_it)
@@ -640,7 +634,7 @@ static void RunEvents(unsigned int which)
 			osd_text(4, (which & 0x1000) ? "LOADING GAME" : "SAVING GAME");
 			emu_draw(0);
 			PicoStateProgressCB = emu_msg_cb;
-			emu_SaveLoadGame((which & 0x1000) >> 12, 0);
+			emu_save_load_game((which & 0x1000) >> 12, 0);
 			PicoStateProgressCB = NULL;
 		}
 
@@ -660,15 +654,14 @@ static void RunEvents(unsigned int which)
 
 		vidResetMode();
 
-		if (PicoOpt&0x10) {
-			strcpy(noticeMsg, "8bit fast renderer");
+        if (PicoOpt & POPT_ALT_RENDERER) {
+            emu_status_msg("fast renderer");
 		} else if (currentConfig.EmuOpt&0x80) {
-			strcpy(noticeMsg, "16bit accurate renderer");
+            emu_status_msg("accurate renderer");
 		} else {
-			strcpy(noticeMsg, "8bit accurate renderer");
+			emu_status_msg("8bit accurate renderer");
 		}
 
-		noticeMsgTime = ps2_GetTicksInUsec();
 	}
 	if (which & 0x0300)
 	{
@@ -679,306 +672,40 @@ static void RunEvents(unsigned int which)
 			state_slot += 1;
 			if(state_slot > 9) state_slot = 0;
 		}
-		sprintf(noticeMsg, "SAVE SLOT %i [%s]", state_slot, emu_checkSaveFile(state_slot) ? "USED" : "FREE");
-		noticeMsgTime = ps2_GetTicksInUsec();
+        
+        emu_status_msg("SAVE SLOT %i [%s]", state_slot,
+        emu_check_save_file(state_slot) ? "USED" : "FREE");
 	}
 }
 
-static void updateKeys(void)
+void pemu_video_mode_change(int is_32col, int is_240_lines)
 {
-	unsigned int keys[2], allActions[2] = { 0, 0 }, events;
-	static unsigned int prevEvents = 0;
-	int i, player_idx;
-
-	keys[0] = ps2_pad_read(0, 0);
-	keys[1] = ps2_pad_read(1, 0);
-
-	if ((keys[0]|keys[1]) & PBTN_SELECT)
-		engineState = PGS_Menu;
-
-	keys[0] &= CONFIGURABLE_KEYS;
-	keys[1] &= CONFIGURABLE_KEYS;
-
-	for (i = 0; i < 32; i++)
-	{
-		for(player_idx=0; player_idx<2; player_idx++){
-			if (keys[player_idx] & (1 << i))
-			{
-				int acts = currentConfig.JoyBinds[player_idx][i];
-				if (!acts) continue;
-				if (combo_keys & (1 << i))
-				{
-					int u = i+1, acts_c = acts & combo_acts;
-					// let's try to find the other one
-					if (acts_c)
-						for (; u < 32; u++)
-							if ( (currentConfig.JoyBinds[player_idx][u] & acts_c) && (keys[player_idx] & (1 << u)) ) {
-								allActions[player_idx] |= acts_c;
-								keys[player_idx] &= ~((1 << i) | (1 << u));
-								break;
-							}
-					// add non-combo actions if combo ones were not found
-					if (!acts_c || u == 32)
-						allActions[player_idx] |= acts & ~combo_acts;
-				} else {
-					allActions[player_idx] |= acts;
-				}
-			}
-		}
-	}
-
-	PicoPad[0] = allActions[0] & 0xfff;
-	PicoPad[1] = allActions[1] & 0xfff;
-
-	if (allActions[0] & 0x7000) emu_DoTurbo(&PicoPad[0], allActions[0]);
-	if (allActions[1] & 0x7000) emu_DoTurbo(&PicoPad[1], allActions[1]);
-
-	events = (allActions[0] | allActions[1]) >> 16;
-
-	if ((events ^ prevEvents) & 0x40) {
-		emu_changeFastForward(events & 0x40);
-		reset_timing = 1;
-	}
-
-	events &= ~prevEvents;
-
-	if (PicoAHW == PAHW_PICO)
-		RunEventsPico(events, keys[0]|keys[1]);
-	if (events) RunEvents(events);
-	if (movie_data) emu_updateMovie();
-
-	prevEvents = (allActions[0] | allActions[1]) >> 16;
 }
 
-static void find_combos(int player_idx)
+void pemu_loop_prep(void)
 {
-	int act, u;
-
-	// find out which keys and actions are combos
-	combo_keys = combo_acts = 0;
-	for (act = 0; act < 32; act++)
-	{
-		int keyc = 0, keyc2 = 0;
-		if (act == 16 || act == 17) continue; // player2 flag
-		if (act > 17)
-		{
-			for (u = 0; u < 24; u++) // 24, because nub can't produce combos
-				if (currentConfig.JoyBinds[player_idx][u] & (1 << act)) keyc++;
-		}
-		else
-		{
-			for (u = 0; u < 24; u++)
-				if (currentConfig.JoyBinds[player_idx][u] & (1 << act)) keyc++;
-			for (u = 0; u < 24; u++)
-				if (currentConfig.JoyBinds[player_idx][u] & (1 << act)) keyc2++;
-		}
-		if (keyc > 1 || keyc2 > 1)
-		{
-			// loop again and mark those keys and actions as combo
-			for (u = 0; u < 24; u++)
-			{
-				if (currentConfig.JoyBinds[player_idx][u] & (1 << act)) {
-					combo_keys |= 1 << u;
-					combo_acts |= 1 << act;
-				}
-			}
-		}
-	}
 }
 
-void emu_Loop(void)
+void pemu_loop_end(void)
 {
-	static int mp3_init_done = 0;
-	char fpsbuff[24]; // fps count c string
-	unsigned int tval, tval_prev = 0, tval_thissec = 0; // timing
-	int frames_done = 0, frames_shown = 0, oldmodes = 0;
-	int target_fps, target_frametime, lim_time, tval_diff, i;
-	char *notice = NULL;
-
-	lprintf("entered emu_Loop()\n");
-
-	fpsbuff[0] = 0;
-
-	// make sure we are in correct mode
-	vidResetMode();
-	oldmodes = ((Pico.video.reg[12]&1)<<2) ^ 0xc;
-	find_combos(0);
-	find_combos(1);
-
-	// pal/ntsc might have changed, reset related stuff
-	target_fps = Pico.m.pal ? 50 : 60;
-	target_frametime = Pico.m.pal ? (1000000<<8)/50 : (1000000<<8)/60+1;
-	reset_timing = 1;
-
-	if (PicoAHW & PAHW_MCD) {
-		// prepare CD buffer
-		PicoCDBufferInit();
-		// mp3...
-		if (!mp3_init_done) {
-			i = mp3_init();
-			mp3_init_done = 1;
-			if (i) { engineState = PGS_Menu; return; }
-		}
-	}
-
-	// prepare sound stuff
-	PsndOut = NULL;
-	if (currentConfig.EmuOpt & 4)
-	{
-        emu_startSound();
-	}
-
-	// loop?
-	while (engineState == PGS_Running)
-	{
-		int modes;
-
-		tval = ps2_GetTicksInUsec();
-		if (reset_timing || tval < tval_prev) {
-			//stdbg("timing reset");
-			reset_timing = 0;
-			tval_thissec = tval;
-			frames_shown = frames_done = 0;
-		}
-
-		// show notice message?
-		if (noticeMsgTime) {
-			static int noticeMsgSum;
-			if (tval - noticeMsgTime > 2000000) { // > 2.0 sec
-				noticeMsgTime = 0;
-				notice = 0;
-			} else {
-				int sum = noticeMsg[0]+noticeMsg[1]+noticeMsg[2];
-				if (sum != noticeMsgSum) { noticeMsgSum = sum; }
-				notice = noticeMsg;
-			}
-		}
-
-		// check for mode changes
-		modes = ((Pico.video.reg[12]&1)<<2)|(Pico.video.reg[1]&8);
-		if (modes != oldmodes) {
-			oldmodes = modes;
-			ps2_ClearScreen();
-		}
-
-		// second passed?
-		if (tval - tval_thissec >= 1000000)
-		{
-			// missing 1 frame?
-			if (currentConfig.Frameskip < 0 && frames_done < target_fps) {
-				SkipFrame(); frames_done++;
-			}
-
-			if (currentConfig.EmuOpt & 2)
-				sprintf(fpsbuff, "%02i/%02i", frames_shown, frames_done);
-
-			tval_thissec += 1000000;
-
-			if (currentConfig.Frameskip < 0) {
-				frames_done  -= target_fps; if (frames_done  < 0) frames_done  = 0;
-				frames_shown -= target_fps; if (frames_shown < 0) frames_shown = 0;
-				if (frames_shown > frames_done) frames_shown = frames_done;
-			} else {
-				frames_done = frames_shown = 0;
-			}
-		}
-#ifdef PFRAMES
-		sprintf(fpsbuff, "%i", Pico.m.frame_count);
-#endif
-
-		//Decide on whether frameskipping is required.
-		tval_prev = tval;
-		lim_time = (frames_done+1) * target_frametime;
-		if (currentConfig.Frameskip >= 0) // frameskip enabled
-		{
-			for (i = 0; i < currentConfig.Frameskip; i++) {
-				updateKeys();
-				SkipFrame(); frames_done++;
-				if (!(currentConfig.EmuOpt&0x40000)) { // do framelimitting if needed
-					if((tval = ps2_GetTicksInUsec())<tval_thissec){	//Counter overflow.
-						tval_diff=(((UINT_MAX-tval)+tval)-tval_thissec) << 8;
-					}
-					else{
-						tval_diff = (int)(tval - tval_thissec) << 8;
-					}
-					if (tval_diff < lim_time) // we are too fast
-						DelayThread(((lim_time - tval_diff)>>8)/1000);
-				}
-				lim_time += target_frametime;
-			}
-		}
-		else // auto frameskip
-		{
-			if((tval = ps2_GetTicksInUsec())<tval_thissec){	//Counter overflow.
-				tval_diff=(((UINT_MAX-tval)+tval)-tval_thissec) << 8;
-			}
-			else{
-				tval_diff = (int)(tval - tval_thissec) << 8;
-			}
-			if (tval_diff > lim_time && (frames_done/16 < frames_shown))
-			{
-				// no time left for this frame - skip
-				if (tval_diff - lim_time >= (300000<<8)) {
-					reset_timing = 1;
-					continue;
-				}
-				updateKeys();
-				SkipFrame(); frames_done++;
-				continue;
-			}
-		}
-
-		updateKeys();
-		PicoFrame();
-
-		// check time
-		if((tval = ps2_GetTicksInUsec())<tval_thissec){	//Counter overflow.
-			tval_diff=(((UINT_MAX-tval)+tval)-tval_thissec) << 8;
-		}
-		else{
-			tval_diff = (int)(tval - tval_thissec) << 8;
-		}
-
-		blit(fpsbuff, notice, tval_diff > lim_time);
-
-		//Perform frame limiting.
-		if (currentConfig.Frameskip < 0 && tval_diff - lim_time >= (300000<<8)) // slowdown detection
-			reset_timing = 1;
-		else if (!(currentConfig.EmuOpt&0x40000) || currentConfig.Frameskip < 0)
-		{
-			// sleep if we are still too fast
-			if (tval_diff < lim_time)
-			{
-				// we are too fast
-				DelayThread(((lim_time - tval_diff)>>8)/1000);
-			}
-		}
-
-		frames_done++; frames_shown++;
-	}
-
-	emu_changeFastForward(0);
-
-	if (PicoAHW & PAHW_MCD) PicoCDBufferFree();
-
-	if (PsndOut != NULL) {
-		PsndOut = NULL;
-        emu_endSound();
-	}
-
-	// save SRAM
-	if ((currentConfig.EmuOpt & 1) && SRam.changed) {
-		emu_msg_cb("Writing SRAM/BRAM..");
-		emu_SaveLoadGame(0, 1);
-		SRam.changed = 0;
-	}
-
-	// clear fps counters and stuff
-	ps2_ClearScreen();
 }
 
-void emu_ResetGame(void)
+const char *plat_get_credits(void)
 {
-	PicoReset();
-	reset_timing = 1;
+    return "PicoDrive v" VERSION " (c) notaz, 06-09\n\n"
+    "Returned life by fjtrujy (thanks sp193)\n/n"
+    "Credits:\n"
+    "fDave: Cyclone 68000 core,\n"
+    "      base code of PicoDrive\n"
+    "Reesy & FluBBa: DrZ80 core\n"
+    "MAME devs: YM2612 and SN76496 cores\n"
+    "rlyeh and others: minimal SDK\n"
+    "Squidge: mmuhack\n"
+    "Dzz: ARM940 sample\n"
+    "\n"
+    "Special thanks (for docs, ideas):\n"
+    " Charles MacDonald, Haze,\n"
+    " Stephane Dallongeville,\n"
+    " Lordus, Exophase, Rokas,\n"
+    " Nemesis, Tasco Deluxe";
 }

@@ -8,6 +8,10 @@
 #define REDUCE_IO_CALLS	1		//Like with the PSP, a high I/O access count is really bad for performance.
 #define SIMPLE_WRITE_SOUND 0
 
+#define SCREEN_SIZE_FIXED 1
+#define SCREEN_WIDTH  320
+#define SCREEN_HEIGHT 224
+
 // draw.c
 #define USE_BGR555 1
 
@@ -25,9 +29,8 @@
 #define dprintf(x...)
 
 // platform
-#define PLAT_MAX_KEYS 32
-#define PLAT_HAVE_JOY 1
 #define PATH_SEP      "/"
 #define PATH_SEP_C    '/'
+#define MENU_X2       0
 
 #endif //PORT_CONFIG_H
