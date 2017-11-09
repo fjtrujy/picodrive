@@ -65,9 +65,10 @@ void emu_noticeMsgUpdated(void)
 	noticeMsgTime = ps2_GetTicksInUsec();
 }
 
-void emu_getMainDir(char *dst, int len)
+int emu_getMainDir(char *dst, int len)
 {
 	if (len > 0) *dst = 0;
+	return 0;
 }
 
 static void emu_draw(int lagging_behind){
@@ -203,16 +204,6 @@ void emu_prepareDefaultConfig(void)
 	}
 }
 
-
-void emu_setDefaultConfig(void)
-{
-	memcpy(&currentConfig, &defaultConfig, sizeof(currentConfig));
-	PicoOpt = currentConfig.s_PicoOpt;
-	PsndRate = currentConfig.s_PsndRate;
-	PicoRegionOverride = currentConfig.s_PicoRegion;
-	PicoAutoRgnOrder = currentConfig.s_PicoAutoRgnOrder;
-	PicoCDBuffers = currentConfig.s_PicoCDBuffers;
-}
 
 static inline void do_pal_update(void)
 {

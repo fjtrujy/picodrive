@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case PGS_ReloadRom:
-				if (emu_ReloadRom()) {
+				if (emu_ReloadRom(romFileName)) {
 					engineState = PGS_Running;
 					if (mp3_last_error != 0)
 						engineState = PGS_Menu; // send to menu to display mp3 error
