@@ -205,7 +205,6 @@ void emu_prepareDefaultConfig(void)
 	}
 }
 
-
 static inline void do_pal_update(void)
 {
 	int i;

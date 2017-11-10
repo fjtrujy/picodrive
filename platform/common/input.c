@@ -228,7 +228,6 @@ static int in_update_kc_async(int *dev_id_out, int *is_down_out, int timeout_ms)
 {
 	struct timeval start, now;
 	int i, is_down, result;
-    int ms_counter = 0;
 
 #ifndef _EE
 	gettimeofday(&start, NULL);
@@ -346,6 +345,7 @@ again:
 			break;
 		}
 	}
+	
 #elif !defined(_EE)
 
 	drv = &DRV(in_devices[dev_id].drv_id);
