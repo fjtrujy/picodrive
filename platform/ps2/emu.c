@@ -33,7 +33,6 @@
 #define OSD_TXT_PAL_ENT			0xF0	//OSD text palette entry.
 #define OSD_CD_STAT_GREEN_PAL_EN	0xC0	//OSD CD status green LED palette entry
 #define OSD_CD_STAT_RED_PAL_EN		0xD0	//OSD CD status red LED palette entry
-#define SOUND_THREAD_PRIORITY    0x50
 
 //Variables for the emulator core to use.
 extern GSTEXTURE FrameBufferTexture;
@@ -176,7 +175,8 @@ static int EmuScanSlow16(unsigned int num)
 
 void pemu_update_display(const char *fps, const char *notice)
 {
-    blit(fps, notice, 0);
+    lprintf("FPS: %s notice: %s\n", fps, notice);
+//    blit(fps, notice, 0);
 }
 
 unsigned int plat_get_ticks_ms(void)
@@ -680,14 +680,74 @@ static void RunEvents(unsigned int which)
 
 void pemu_video_mode_change(int is_32col, int is_240_lines)
 {
+    ps2_ClearScreen();
+}
+
+void emu_startSound(void)
+{
+    static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
+    int stereo;
+    
+    SuspendThread(sound_thread_id);
+    
+    samples_made = samples_done = 0;
+    
+    if (PsndRate != PsndRate_old || (PicoOpt&0x0b) != (PicoOpt_old&0x0b) || Pico.m.pal != pal_old) {
+        PsndRerate(Pico.m.frame_count ? 1 : 0);
+    }
+    stereo=(PicoOpt&8)>>3;
+    
+    samples_block = Pico.m.pal ? SOUND_BLOCK_SIZE_PAL : SOUND_BLOCK_SIZE_NTSC;
+    if (PsndRate <= 11025) samples_block /= 4;
+    else if (PsndRate <= 22050) samples_block /= 2;
+    sndBuffer_endptr = &sndBuffer[samples_block*SOUND_BLOCK_COUNT];
+    
+    lprintf("starting audio: %i, len: %i, stereo: %i, pal: %i, block samples: %i\n",
+            PsndRate, PsndLen, stereo, Pico.m.pal, samples_block);
+    
+    PicoWriteSound = writeSound;
+    memset(sndBuffer, 0, sizeof(sndBuffer));
+    snd_playptr = sndBuffer_endptr - samples_block;
+    samples_made = samples_block; // send 1 empty block first..
+    PsndOut = sndBuffer;
+    PsndRate_old = PsndRate;
+    PicoOpt_old  = PicoOpt;
+    pal_old = Pico.m.pal;
+    
+    ps2_SetAudioFormat(PsndRate);
+    
+    sound_thread_stop=0;
+    ResumeThread(sound_thread_id);
+    WakeupThread(sound_thread_id);
 }
 
 void pemu_loop_prep(void)
 {
+//    FrameBufferTexture.Width=0;
+//    FrameBufferTexture.Height=0;
+//    FrameBufferTextureVisibleOffsetX=0;
+//    FrameBufferTextureVisibleOffsetY=0;
+//    FrameBufferTextureVisibleWidth=0;
+//    FrameBufferTextureVisibleHeight=0;
+//    FrameBufferTexture.Mem=NULL;
+//    FrameBufferTexture.Clut=NULL;
+//    PicoDraw2FB=NULL;
+
+    sound_init();
+
+//    vidResetMode();;
+    
+    // prepare sound stuff
+    PsndOut = NULL;
+    if (currentConfig.EmuOpt & 4)
+    {
+        emu_startSound();
+    }
 }
 
 void pemu_loop_end(void)
 {
+    ps2_ClearScreen();;
 }
 
 const char *plat_get_credits(void)
