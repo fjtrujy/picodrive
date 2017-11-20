@@ -193,7 +193,12 @@ void spend_cycles(int c)
 
 void plat_wait_till_us(unsigned int us_to)
 {
-    DelayThread((us_to/295)/1000);
+    unsigned int now, diff;
+    diff = (us_to-plat_get_ticks_us())/1000;
+    
+    if (diff > 0 && diff < 50 ) { // This maximum is to avoid the restart cycle of the PS2 cpu_ticks
+        DelayThread(diff);
+    }
 }
 
 void plat_video_wait_vsync(void)

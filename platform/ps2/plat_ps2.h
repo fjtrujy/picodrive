@@ -10,7 +10,6 @@
 #define SOUND_THREAD_PRIORITY    0x50
 
 /* video */
-void ps2_video_changemode(int bpp);
 void ps2_memcpy_all_buffers(void *data, int offset, int len);
 void ps2_memset_all_buffers(int offset, int byte, int len);
 void ps2_make_fb_bufferable(int yes);

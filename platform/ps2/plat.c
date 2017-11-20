@@ -357,14 +357,6 @@ void plat_validate_config(void)
     
 }
 
-void ps2_video_changemode(int bpp)
-{
-//	ps2_video_changemode_ll(bpp);
-
-  	ps2_memset_all_buffers(0, 0, 320*240*2);
-//	ps2_video_flip();
-}
-
 void ps2_memcpy_all_buffers(void *data, int offset, int len)
 {
     char *dst = (char *)data + offset;
