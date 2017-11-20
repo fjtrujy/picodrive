@@ -49,8 +49,6 @@ static int combo_keys = 0, combo_acts = 0; // keys and actions which need button
 static unsigned short int FrameBufferTextureVisibleWidth, FrameBufferTextureVisibleHeight;
 static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleOffsetY;	//From upper left-hand corner.
 
-static void sound_init(void);
-static void sound_deinit(void);
 static void blit(const char *fps, const char *notice, int lagging_behind);
 
 static void emu_draw(int lagging_behind){
@@ -175,8 +173,7 @@ static int EmuScanSlow16(unsigned int num)
 
 void pemu_update_display(const char *fps, const char *notice)
 {
-    lprintf("FPS: %s notice: %s\n", fps, notice);
-//    blit(fps, notice, 0);
+    blit(fps, notice, 0);
 }
 
 unsigned int plat_get_ticks_ms(void)
@@ -196,16 +193,7 @@ void spend_cycles(int c)
 
 void plat_wait_till_us(unsigned int us_to)
 {
-    unsigned int now;
-    
-    spend_cycles(1024);
-    now = plat_get_ticks_us();
-    
-    while ((signed int)(us_to - now) > 512)
-    {
-        spend_cycles(1024);
-        now = plat_get_ticks_us();
-    }
+    DelayThread((us_to/295)/1000);
 }
 
 void plat_video_wait_vsync(void)
@@ -214,26 +202,6 @@ void plat_video_wait_vsync(void)
 
 void plat_status_msg_clear(void)
 {
-    int is_8bit = (PicoOpt & POPT_ALT_RENDERER) || !(currentConfig.EmuOpt & EOPT_16BPP);
-    if (currentConfig.EmuOpt & EOPT_WIZ_TEAR_FIX) {
-        /* ugh.. */
-        int i, u, *p;
-        if (is_8bit) {
-            p = (int *)g_screen_ptr + (240-8) / 4;
-            for (u = 320; u > 0; u--, p += 240/4)
-                p[0] = p[1] = 0xe0e0e0e0;
-        } else {
-            p = (int *)g_screen_ptr + (240-8)*2 / 4;
-            for (u = 320; u > 0; u--, p += 240*2/4)
-                p[0] = p[1] = p[2] = p[3] = 0;
-        }
-        return;
-    }
-    
-    if (is_8bit)
-        ps2_memset_all_buffers(320*232, 0xe0, 320*8);
-    else
-        ps2_memset_all_buffers(320*232*2, 0, 320*8*2);
 }
 
 void plat_status_msg_busy_next(const char *msg)
@@ -562,13 +530,6 @@ static void writeSound(int len)
 	}
 }
 
-static void SkipFrame(void)
-{
-	PicoSkipFrame=1;
-	PicoFrame();
-	PicoSkipFrame=0;
-}
-
 void pemu_forced_frame(int opts)
 {
 	int po_old = PicoOpt;
@@ -680,6 +641,7 @@ static void RunEvents(unsigned int which)
 
 void pemu_video_mode_change(int is_32col, int is_240_lines)
 {
+    lprintf("Entro\n");
     ps2_ClearScreen();
 }
 
@@ -723,19 +685,19 @@ void emu_startSound(void)
 
 void pemu_loop_prep(void)
 {
-//    FrameBufferTexture.Width=0;
-//    FrameBufferTexture.Height=0;
-//    FrameBufferTextureVisibleOffsetX=0;
-//    FrameBufferTextureVisibleOffsetY=0;
-//    FrameBufferTextureVisibleWidth=0;
-//    FrameBufferTextureVisibleHeight=0;
-//    FrameBufferTexture.Mem=NULL;
-//    FrameBufferTexture.Clut=NULL;
-//    PicoDraw2FB=NULL;
+    FrameBufferTexture.Width=0;
+    FrameBufferTexture.Height=0;
+    FrameBufferTextureVisibleOffsetX=0;
+    FrameBufferTextureVisibleOffsetY=0;
+    FrameBufferTextureVisibleWidth=0;
+    FrameBufferTextureVisibleHeight=0;
+    FrameBufferTexture.Mem=NULL;
+    FrameBufferTexture.Clut=NULL;
+    PicoDraw2FB=NULL;
 
     sound_init();
 
-//    vidResetMode();;
+    vidResetMode();
     
     // prepare sound stuff
     PsndOut = NULL;

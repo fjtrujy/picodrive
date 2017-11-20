@@ -666,8 +666,8 @@ static void do_delete(const char *fpath, const char *fname)
 	plat_video_menu_begin();
 
 	if (!rom_loaded)
-		menu_darken_bg(g_screen_ptr, g_screen_width * g_screen_height, 0);
-
+        menu_darken_bg(g_screen_ptr, g_screen_width * g_screen_height, 0);
+    
 	len = strlen(fname);
 	if (len > g_screen_width/6)
 		len = g_screen_width/6;
@@ -724,9 +724,6 @@ static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
 	n--; // exclude current dir (".")
 
 	plat_video_menu_begin();
-
-//	if (!rom_loaded)
-//		menu_darken_bg(gp2x_screen, 320*240, 0);
 
 	menu_darken_bg((short *)g_screen_ptr + g_screen_width * max_cnt/2 * 10, g_screen_width * 8, 0);
 
@@ -1077,11 +1074,8 @@ static void draw_devicelist(char *curdir, struct my_dirent **namelist, int n, in
     
     plat_video_menu_begin();
     
-    if (!rom_loaded) {
-//        menu_darken_bg(ps2_screen, ps2_screen, 320*224, 0);
-    }
-    
-    //    menu_darken_bg((unsigned short int *)ps2_screen + 320*120, (unsigned short int *)ps2_screen + 320*120, 320*8, 0);    //Looks ugly on a TV. What is the exact purpose of darkening a few lines in the middle of the screen? :S
+    if (!rom_loaded)
+        menu_darken_bg(g_screen_ptr, g_screen_width * g_screen_height, 0);
     
     if (start - 2 >= 0)
         smalltext_out16(14, (start - 2)*10, curdir, 0xffff);

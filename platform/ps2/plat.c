@@ -524,7 +524,7 @@ void plat_video_menu_enter(int is_rom_loaded)
 // clears whole screen.
 void ps2_ClearScreen(void)
 {
-    memset(FrameBufferTexture.Mem, 0, gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM));
+    memset(g_screen_ptr, 0, gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM));
 }
 
 void plat_video_menu_begin(void)
@@ -653,15 +653,9 @@ void plat_video_menu_deinit(void)
 void plat_early_init(void)
 {
     ee_sema_t sema;
-    char cwd[FILENAME_MAX], BlockDevice[16];
-    const char *MountPoint;
-    int BootDeviceID;
 
     SifInitRpc(0);
-//    while(!SifIopReset(NULL, 0)){};
-
-    getcwd(cwd, sizeof(cwd));
-    BootDeviceID=GetBootDeviceID(cwd);
+//    while(!SifIopReset(NULL, 0)){}; // Comment this line if you don't wanna debug the output
 
     ChangeThreadPriority(GetThreadId(), MAIN_THREAD_PRIORITY);
 
@@ -674,35 +668,45 @@ void plat_early_init(void)
     EnableIntc(kINTC_VBLANK_START);
 
     while(!SifIopSync()){};
+}
 
+void plat_init(void)
+{
+    char cwd[FILENAME_MAX], BlockDevice[16];
+    const char *MountPoint;
+    int BootDeviceID;
+    
+    getcwd(cwd, sizeof(cwd));
+    BootDeviceID=GetBootDeviceID(cwd);
+    
     SifInitRpc(0);
-
+    
     sbv_patch_enable_lmb();
-
+    
     LoadIOPModules();
-
+    
     fileXioInit();
     audsrv_init();
     ps2_SetAudioFormat(22050);
     audsrv_set_volume(MAX_VOLUME);
-
+    
     padInit(0);
     padPortOpen(0, 0, PadArea[0]);
     padPortOpen(1, 0, PadArea[1]);
     InitializePad(0, 0);
     InitializePad(1, 0);
-
+    
     InitGS();
     memset(&FrameBufferTexture, 0, sizeof(FrameBufferTexture));
-
+    
     //Mount the HDD partition, if required.
     if(BootDeviceID==BOOT_DEVICE_HDD){
         ps2_loadHDDModules();
-
+        
         //Attempt to mount the partition.
         if((MountPoint=GetMountParams(cwd, BlockDevice))!=NULL && !strncmp(MountPoint, "pfs:", 4)){
             fileXioMount("pfs0:", BlockDevice, FIO_MT_RDWR);
-
+            
             SetPWDOnPFS(&MountPoint[4]);
         }
     }
@@ -710,12 +714,8 @@ void plat_early_init(void)
         chdir(DEFAULT_PATH);
     }
     else if(BootDeviceID==BOOT_DEVICE_MASS){
-//        WaitUntilDeviceIsReady(argv[0]);
+        //        WaitUntilDeviceIsReady(argv[0]);
     }
-}
-
-void plat_init(void)
-{
 }
 
 void plat_finish(void)

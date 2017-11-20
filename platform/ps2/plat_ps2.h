@@ -5,9 +5,6 @@
 
 #define GS_BLACK GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00)
 
-//extern int default_cpu_clock;
-extern GSGLOBAL *gsGlobal;
-
 //Thread priorities (lower = higher priority)
 #define MAIN_THREAD_PRIORITY    0x51
 #define SOUND_THREAD_PRIORITY    0x50
