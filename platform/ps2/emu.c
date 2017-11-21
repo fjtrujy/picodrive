@@ -554,99 +554,38 @@ void pemu_forced_frame(int opts)
 
 void plat_video_toggle_renderer(int is_next, int is_menu)
 {
-}
-
-static void RunEventsPico(unsigned int events, unsigned int keys)
-{
-	emu_RunEventsPico(events);
-
-	if (pico_inp_mode != 0)
-	{
-		PicoPad[0] &= ~0x0f; // release UDLR
-		if (keys & PBTN_UP)   { pico_pen_y--; if (pico_pen_y < 8) pico_pen_y = 8; }
-		if (keys & PBTN_DOWN) { pico_pen_y++; if (pico_pen_y > 224-PICO_PEN_ADJUST_Y) pico_pen_y = 224-PICO_PEN_ADJUST_Y; }
-		if (keys & PBTN_LEFT) { pico_pen_x--; if (pico_pen_x < 0) pico_pen_x = 0; }
-		if (keys & PBTN_RIGHT) {
-			int lim = (Pico.video.reg[12]&1) ? 319 : 255;
-			pico_pen_x++;
-			if (pico_pen_x > lim-PICO_PEN_ADJUST_X)
-				pico_pen_x = lim-PICO_PEN_ADJUST_X;
-		}
-		PicoPicohw.pen_pos[0] = pico_pen_x;
-		if (!(Pico.video.reg[12]&1)) PicoPicohw.pen_pos[0] += pico_pen_x/4;
-		PicoPicohw.pen_pos[0] += 0x3c;
-		PicoPicohw.pen_pos[1] = pico_inp_mode == 1 ? (0x2f8 + pico_pen_y) : (0x1fc + pico_pen_y);
-	}
-}
-
-static void RunEvents(unsigned int which)
-{
-	if (which & 0x1800) // save or load (but not both)
-	{
-		int do_it = 1;
-        if ( emu_check_save_file(state_slot) &&
-				(( (which & 0x1000) && (currentConfig.EmuOpt & 0x800)) || // load
-				 (!(which & 0x1000) && (currentConfig.EmuOpt & 0x200))) ) // save
-		{
-			int keys;
-			blit("", (which & 0x1000) ? "LOAD STATE? (X=yes, O=no)" : "OVERWRITE SAVE? (X=yes, O=no)", 0);
-			while( !((keys = ps2_pad_read_all()) & (PBTN_MBACK|PBTN_MOK)) ) {};
-			if (keys & PBTN_MOK) do_it = 0;
-			while(  ((keys = ps2_pad_read_all()) & (PBTN_MBACK|PBTN_MOK)) ) {};// wait for release
-		}
-
-		if (do_it)
-		{
-			osd_text(4, (which & 0x1000) ? "LOADING GAME" : "SAVING GAME");
-			emu_draw(0);
-			PicoStateProgressCB = emu_msg_cb;
-			emu_save_load_game((which & 0x1000) >> 12, 0);
-			PicoStateProgressCB = NULL;
-		}
-
-		reset_timing = 1;
-	}
-	if (which & 0x0400) // switch renderer
-	{
-#ifndef ALLOW_16B_RENDERER_USE
-		if (PicoOpt&0x10) { PicoOpt&=~0x10; }
-		else              { PicoOpt|= 0x10; }
-		currentConfig.EmuOpt &= ~0x80;
-#else
-		if      (  PicoOpt&0x10)             { PicoOpt&=~0x10; currentConfig.EmuOpt |= 0x80; }
-		else if (!(currentConfig.EmuOpt&0x80)) PicoOpt|= 0x10;
-		else   currentConfig.EmuOpt &= ~0x80;
-#endif
-
-		vidResetMode();
-
-        if (PicoOpt & POPT_ALT_RENDERER) {
-            emu_status_msg("fast renderer");
-		} else if (currentConfig.EmuOpt&0x80) {
-            emu_status_msg("accurate renderer");
-		} else {
-			emu_status_msg("8bit accurate renderer");
-		}
-
-	}
-	if (which & 0x0300)
-	{
-		if(which&0x0200) {
-			state_slot -= 1;
-			if(state_slot < 0) state_slot = 9;
-		} else {
-			state_slot += 1;
-			if(state_slot > 9) state_slot = 0;
-		}
-        
-        emu_status_msg("SAVE SLOT %i [%s]", state_slot,
-        emu_check_save_file(state_slot) ? "USED" : "FREE");
-	}
+    /* alt, 16bpp, 8bpp */
+    if (PicoOpt & POPT_ALT_RENDERER) {
+        PicoOpt &= ~POPT_ALT_RENDERER;
+        if (is_next)
+            currentConfig.EmuOpt |= EOPT_16BPP;
+    } else if (!(currentConfig.EmuOpt & EOPT_16BPP)) {
+        if (is_next)
+            PicoOpt |= POPT_ALT_RENDERER;
+        else
+            currentConfig.EmuOpt |= EOPT_16BPP;
+    } else {
+        currentConfig.EmuOpt &= ~EOPT_16BPP;
+        if (!is_next)
+            PicoOpt |= POPT_ALT_RENDERER;
+    }
+    
+    if (is_menu)
+        return;
+    
+    vidResetMode();
+    
+    if (PicoOpt & POPT_ALT_RENDERER) {
+        emu_status_msg(" 8bit fast renderer");
+    } else if (currentConfig.EmuOpt & EOPT_16BPP) {
+        emu_status_msg("16bit accurate renderer");
+    } else {
+        emu_status_msg(" 8bit accurate renderer");
+    }
 }
 
 void pemu_video_mode_change(int is_32col, int is_240_lines)
 {
-    lprintf("Entro\n");
     ps2_ClearScreen();
 }
 

@@ -711,11 +711,8 @@ static unsigned short file2color(const char *fname)
 	return 0xffff;
 }
 
-#ifdef _EE
-static void draw_dirlist(char *curdir, struct my_dirent **namelist, int n, int sel)
-#else
+
 static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
-#endif
 {
 	int max_cnt, start, i, x, pos;
 
@@ -734,11 +731,8 @@ static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
 		pos = start + i;
 		if (pos < 0)  continue;
 		if (pos >= max_cnt) break;
-#ifdef _EE
-        if (FIO_S_ISDIR(namelist[i+1]->d_type)) {
-#else
+
         if (namelist[i+1]->d_type == DT_DIR) {
-#endif
 			smalltext_out16(x, pos * me_sfont_h, "/", 0xfff6);
 			smalltext_out16(x + me_sfont_w, pos * me_sfont_h, namelist[i+1]->d_name, 0xfff6);
 		} else {
@@ -751,14 +745,13 @@ static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
 }
 
 #ifdef _EE
-#define APA_FLAG_SUB        0x0001
     
-static int my_scanpart(const char *dir, struct my_dirent ***namelist_out,
-                       int(*filter)(const struct my_dirent *),
+static int my_scanpart(const char *dir, struct dirent ***namelist_out,
+                       int(*filter)(const struct dirent *),
                        int(*compar)(const void *, const void *))
 {
     int ret = -1, dir_uid = -1, name_alloc = 4, name_count = 0;
-    struct my_dirent **namelist = NULL, *ent;
+    struct dirent **namelist = NULL, *ent;
     iox_dirent_t dirent;
     
     namelist = malloc(sizeof(*namelist) * name_alloc);
@@ -778,7 +771,7 @@ static int my_scanpart(const char *dir, struct my_dirent ***namelist_out,
         if(!(dirent.stat.attr&APA_FLAG_SUB)){
             ent = malloc(sizeof(*ent));
             if (ent == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
-            ent->d_type =  FIO_S_IFDIR;    //The partitions shall appear as directories.
+            ent->d_type =  DT_DIR;    //The partitions shall appear as directories.
             strncpy(ent->d_name, dirent.name, sizeof(ent->d_name));
             ent->d_name[sizeof(ent->d_name)-1] = 0;
             if (filter == NULL || filter(ent))
@@ -816,12 +809,12 @@ end:
     return ret;
 }
 
-static int scandir(const char *dir, struct my_dirent ***namelist_out,
-                      int(*filter)(const struct my_dirent *),
+static int scandir(const char *dir, struct dirent ***namelist_out,
+                      int(*filter)(const struct dirent *),
                       int(*compar)(const void *, const void *))
 {
     int ret = -1, dir_uid = -1, name_alloc = 4, name_count = 0;
-    struct my_dirent **namelist = NULL, *ent;
+    struct dirent **namelist = NULL, *ent;
     iox_dirent_t dirent;
     
     namelist = malloc(sizeof(*namelist) * name_alloc);
@@ -844,6 +837,7 @@ static int scandir(const char *dir, struct my_dirent ***namelist_out,
         if (ent == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
         ent->d_type = dirent.stat.mode;
         strncpy(ent->d_name, dirent.name, sizeof(ent->d_name));
+        lprintf("Name:%s, type:%i\n", ent->d_name, ent->d_type);
         ent->d_name[sizeof(ent->d_name)-1] = 0;
         if (filter == NULL || filter(ent))
             namelist[name_count++] = ent;
@@ -882,17 +876,12 @@ end:
     
 static int scandir_cmp(const void *p1, const void *p2)
 {
-#ifdef _EE
-    struct my_dirent **d1 = (struct my_dirent **)p1, **d2 = (struct my_dirent **)p2;
-    if ((*d1)->d_type == (*d2)->d_type) return alphasort(d1, d2);
-    if (FIO_S_ISDIR((*d1)->d_type)) return -1; // put before
-    if (FIO_S_ISDIR((*d2)->d_type)) return  1;
-#else
     struct dirent **d1 = (struct dirent **)p1, **d2 = (struct dirent **)p2;
     if ((*d1)->d_type == (*d2)->d_type) return alphasort(d1, d2);
     if ((*d1)->d_type == DT_DIR) return -1; // put before
     if ((*d2)->d_type == DT_DIR) return  1;
-#endif
+
+    
 	return alphasort(d1, d2);
 }
 
@@ -901,11 +890,8 @@ static const char *filter_exts[] = {
 	".jpg", ".gpe"
 };
 
-#ifdef _EE
-static int scandir_filter(const struct my_dirent *ent)
-#else
+
 static int scandir_filter(const struct dirent *ent)
-#endif
 {
 	const char *p;
 	int i;
@@ -924,11 +910,7 @@ static int scandir_filter(const struct dirent *ent)
 
 static char *menu_loop_romsel(char *curr_path, int len)
 {
-#ifdef _EE
-    struct my_dirent **namelist;
-#else
 	struct dirent **namelist;
-#endif
 	int n, inp, sel = 0;
 	char *ret = NULL, *fname = NULL;
 
@@ -981,12 +963,9 @@ rescan:
 		if ((inp & PBTN_MOK) || (inp & (PBTN_MENU|PBTN_MA2)) == (PBTN_MENU|PBTN_MA2))
 		{
 			again:
-#ifdef _EE
-            if (FIO_S_ISREG(namelist[sel+1]->d_type))
-#else
-			if (namelist[sel+1]->d_type == DT_REG)
-#endif
-			{
+
+            if (namelist[sel+1]->d_type == DT_REG)
+            {
 				strcpy(rom_fname_reload, curr_path);
 				strcat(rom_fname_reload, "/");
 				strcat(rom_fname_reload, namelist[sel+1]->d_name);
@@ -1001,11 +980,7 @@ rescan:
 				}
 				goto rescan;
 			}
-#ifdef _EE
-			else if (FIO_S_ISDIR(namelist[sel+1]->d_type))
-#else
-            else if (namelist[sel+1]->d_type == DT_DIR)
-#endif
+            else if (namelist[sel+1]->d_type == DT_DIR) //TODO fix an issue here with the ".."
 			{
 				int newlen;
 				char *p, *newdir;
@@ -1041,13 +1016,8 @@ rescan:
 				if (tstf != NULL)
 				{
 					if (fread(&tmp, 1, 1, tstf) > 0 || ferror(tstf) == 0)
-#ifdef _EE
-                        namelist[sel+1]->d_type = FIO_S_IFREG;
-                    else	namelist[sel+1]->d_type = FIO_S_IFDIR;
-#else
 						namelist[sel+1]->d_type = DT_REG;
                     else	namelist[sel+1]->d_type = DT_DIR;
-#endif
 					fclose(tstf);
 					goto again;
 				}
@@ -1066,7 +1036,7 @@ rescan:
 }
 
 #ifdef _EE
-static void draw_devicelist(char *curdir, struct my_dirent **namelist, int n, int sel)
+static void draw_devicelist(char *curdir, struct dirent **namelist, int n, int sel)
 {
     int start, i, pos;
     
@@ -1091,7 +1061,7 @@ static void draw_devicelist(char *curdir, struct my_dirent **namelist, int n, in
 
 static char *romsel_hddpart_loop(char *curr_path)
 {
-    struct my_dirent **namelist;
+    struct dirent **namelist;
     int n, sel = 0;
     unsigned int inp = 0;
     char *ret = NULL;
@@ -1146,7 +1116,7 @@ static char *romsel_hddpart_loop(char *curr_path)
 
 #define NUM_SUPPORTED_DEVICES    4
 
-static int GetDeviceList(struct my_dirent ***namelist_out, int(*compar)(const void *, const void *))
+static int GetDeviceList(struct dirent ***namelist_out, int(*compar)(const void *, const void *))
 {
     static const char *devices[NUM_SUPPORTED_DEVICES]={    //cdrom0: cannot be supported because it doesn't support the directory functions.
         "mc0:",
@@ -1156,7 +1126,7 @@ static int GetDeviceList(struct my_dirent ***namelist_out, int(*compar)(const vo
     };
     
     int ret = -1, name_count = 0;
-    struct my_dirent **namelist = NULL, *ent;
+    struct dirent **namelist = NULL, *ent;
     
     namelist = malloc(sizeof(*namelist) * NUM_SUPPORTED_DEVICES);
     if (namelist == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
@@ -1192,7 +1162,7 @@ end:
 
 static char *romsel_device_loop(char *curr_path)
 {
-    struct my_dirent **namelist;
+    struct dirent **namelist;
     int n, sel = 0;
     unsigned int inp = 0;
     char *ret = NULL, *fname;

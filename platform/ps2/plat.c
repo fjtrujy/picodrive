@@ -346,10 +346,16 @@ int plat_get_root_dir(char *dst, int len)
 
 int plat_is_dir(const char *path)
 {
-    if (!fileXioChdir(path)) {
-        return 1;
+    iox_stat_t cpstat;
+    int isDir = 0;
+    int iret;
+    // is this a dir or a full path?
+    iret = fileXioGetStat(path, &cpstat);
+    if (iret >= 0 && FIO_S_ISDIR(cpstat.mode)){
+        isDir = 1;
     }
-    return 0;
+    
+    return isDir;
 }
 
 void plat_validate_config(void)

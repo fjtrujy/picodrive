@@ -13,11 +13,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-struct my_dirent
-{
-    unsigned int d_type;
-    char d_name[255];
-};
+#define APA_FLAG_SUB        0x0001
+#define DT_DIR 4607
+#define DT_REG 8703
 
 //Create those function that are not included in the PS2SDK
 
