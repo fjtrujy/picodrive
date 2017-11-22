@@ -22,36 +22,6 @@
 	or	\dest, $at
 .endm
 
-
-# Note: Assumes that n is a multiple of 16.
-# void blockcpy_or(void *dst, void *src, size_t n, int pat)
-.global blockcpy_or
-.ent blockcpy_or
-blockcpy_or:
-	#Spread my beauties! Multiply and divide! :D
-	sll $t0, $a3, 8
-	or $a3, $a3, $t0
-	pcpyld $a3, $a3
-	pcpyh $a3, $a3
-
-blockcpy_or_loop:
-	ld $t0, 8($a1)
-	ld $t1, 0($a1)
-	pcpyld $t0, $t0, $t1
-#	lq $t0, 0($a1)	#This won't work because the data may not be aligned to a 128-bit address (And unless the source code of Picodrive is modified for that purpose, use two dword loads instead). :(
-
-	por $t0, $t0, $a3
-	sq $t0, 0($a0)
-
-	addiu $a2, $a2, -16
-	addiu $a0, $a0, 16
-	bgtz $a2, blockcpy_or_loop
-	addiu $a1, $a1, 16
-
-	jr $ra
-	nop
-.end blockcpy_or
-
 # void amips_clut(unsigned short *dst, unsigned char *src, unsigned short *pal, int count)
 
 .global amips_clut

@@ -141,6 +141,7 @@ static int bank_mask;
 
 static void write_bank(unsigned short a, unsigned char d)
 {
+  elprintf(EL_Z80BNK, "bank %04x %02x @ %04x", a, d, z80_pc());
   switch (a & 0x0f)
   {
     case 0x0c:
@@ -234,6 +235,7 @@ void PicoFrameMS(void)
   int lines = is_pal ? 313 : 262;
   int cycles_line = is_pal ? 58020 : 58293; /* (226.6 : 227.7) * 256 */
   int cycles_done = 0, cycles_aim = 0;
+  int skip = PicoSkipFrame;
   int lines_vis = 192;
   int hint; // Hint counter
   int y;
@@ -245,7 +247,7 @@ void PicoFrameMS(void)
   {
     pv->v_counter = Pico.m.scanline = y;
 
-    if (y < lines_vis)
+    if (y < lines_vis && !skip)
       PicoLineMode4(y);
 
     if (y <= lines_vis)
@@ -272,7 +274,8 @@ void PicoFrameMS(void)
     cycles_done += z80_run((cycles_aim - cycles_done) >> 8) << 8;
   }
 
-  PsndGetSamplesMS();
+  if (PsndOut)
+    PsndGetSamplesMS();
 }
 
 void PicoFrameDrawOnlyMS(void)

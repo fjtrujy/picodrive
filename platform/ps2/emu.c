@@ -584,7 +584,7 @@ void plat_video_toggle_renderer(int is_next, int is_menu)
     }
 }
 
-void pemu_video_mode_change(int is_32col, int is_240_lines)
+void emu_video_mode_change(int start_line, int line_count, int is_32cols)
 {
     ps2_ClearScreen();
 }
