@@ -333,6 +333,7 @@ static void vidResetMode(void)
 		else{
 			//16-bit mode
 			PicoDrawSetColorFormat(1);
+            PicoDrawSetColorFormatMode4(1);
 			PicoScanBegin = &EmuScanSlow16;
 			PicoScanEnd = NULL;
 
