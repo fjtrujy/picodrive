@@ -7,6 +7,15 @@
 # (c) Copyright 2007, Grazvydas "notaz" Ignotas
 # All Rights Reserved
 
+#FJTRUJY TODO
+SRAMRead:
+SRAMRead16:
+PadRead:
+z80ReadBusReq:
+z80Read8:
+ym2612_read_local_68k:
+OtherRead16:
+
 
 .set noreorder
 .set noat	#$at is currently used in the substitute macro instructions (and some replacement code).

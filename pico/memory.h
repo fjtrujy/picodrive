@@ -1,8 +1,12 @@
 // memory map related stuff
 
+#ifndef _EE
+
 typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
+
+#endif
 
 #define M68K_MEM_SHIFT 16
 
