@@ -71,6 +71,9 @@ vpath %.c = ../..
 vpath %.s = ../..
 vpath %.S = ../..
 
+DIRS = platform platform/gp2x platform/common pico pico/cd pico/pico pico/sound pico/carthw/svp \
+    pico/32x zlib unzip cpu cpu/musashi cpu/fame cpu/mz80 cpu/cz80
+
 %.o : %.c
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
 
@@ -83,7 +86,12 @@ vpath %.S = ../..
 $(EE_BIN) : $(EE_OBJS)
 	$(EE_CC) $(EE_CFLAGS) $(EE_LDFLAGS) -o $(EE_BIN) $(EE_OBJS) $(EE_LIBS)
 
-all: $(EE_BIN)
+mkdirs:
+	@mkdir -p $(DIRS)
+
+PicoDrive: $(EE_BIN)
+
+all: mkdirs PicoDrive
 
 USBD_irx.o:
 	bin2o $(EE_GPVAL) $(PS2SDK)/iop/irx/usbd.irx USBD_irx.o USBD_irx
@@ -133,5 +141,6 @@ PFS_irx.o:
 
 clean:
 	rm -f $(EE_BIN) $(EE_OBJS)
+	rm -rf $(DIRS)
 
 include $(PS2SDK)/samples/Makefile.pref
