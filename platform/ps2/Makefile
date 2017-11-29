@@ -37,7 +37,8 @@ EE_OBJS += pico/area.o pico/cart.o pico/debug.o ../../pico/memory.o ../../pico/m
 EE_OBJS += pico/cd/pico.o pico/cd/memory.o pico/cd/sek.o pico/cd/LC89510.o \
 		pico/cd/cd_sys.o pico/cd/cd_file.o pico/cd/gfx_cd.o \
 		pico/cd/area.o pico/cd/misc.o pico/cd/pcm.o pico/cd/buffering.o pico/cd/cue.o
-
+# Pico - 32X
+EE_OBJS += pico/32x/32x.o pico/32x/memory.o
 # Pico - CartHW
 EE_OBJS += pico/carthw/carthw.o pico/carthw/svp/svp.o pico/carthw/svp/ssp16.o pico/carthw/svp/memory.o pico/carthw/svp/compiler.o
 
