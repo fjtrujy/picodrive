@@ -15,6 +15,7 @@ z80ReadBusReq:
 z80Read8:
 ym2612_read_local_68k:
 OtherRead16:
+PicoRead16Hook:
 
 
 .set noreorder

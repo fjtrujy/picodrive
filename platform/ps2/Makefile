@@ -31,7 +31,8 @@ EE_OBJS += platform/common/emu.o platform/common/menu.o platform/common/fonts.o 
 EE_OBJS += pico/area.o pico/cart.o pico/debug.o ../../pico/memory.o ../../pico/misc.o \
 		pico/pico/pico.o pico/pico/memory.o pico/pico/xpcm.o	\
 		pico/pico.o pico/sek.o pico/videoport.o pico/draw2.o pico/draw.o \
-		pico/patch.o pico/z80if.o pico/sms.o pico/mode4.o pico/draw_mips_r5900.o pico/memory_mips_r5900.o pico/misc_mips_r5900.o
+		pico/patch.o pico/z80if.o pico/sms.o pico/mode4.o pico/eeprom.o \
+        pico/draw_mips_r5900.o pico/memory_mips_r5900.o pico/misc_mips_r5900.o
 # Pico - CD
 EE_OBJS += pico/cd/pico.o pico/cd/memory.o pico/cd/sek.o pico/cd/LC89510.o \
 		pico/cd/cd_sys.o pico/cd/cd_file.o pico/cd/gfx_cd.o \
