@@ -8,12 +8,12 @@ typedef unsigned int   UINT32;
 typedef unsigned short UINT16;
 typedef unsigned char  UINT8;
 
-#define RB(a) p32x_sh2_read8(a,sh2->is_slave)
-#define RW(a) p32x_sh2_read16(a,sh2->is_slave)
-#define RL(a) p32x_sh2_read32(a,sh2->is_slave)
-#define WB(a,d) p32x_sh2_write8(a,d,sh2->is_slave)
-#define WW(a,d) p32x_sh2_write16(a,d,sh2->is_slave)
-#define WL(a,d) p32x_sh2_write32(a,d,sh2->is_slave)
+#define RB(a) p32x_sh2_read8(a,sh2)
+#define RW(a) p32x_sh2_read16(a,sh2)
+#define RL(a) p32x_sh2_read32(a,sh2)
+#define WB(a,d) p32x_sh2_write8(a,d,sh2)
+#define WW(a,d) p32x_sh2_write16(a,d,sh2)
+#define WL(a,d) p32x_sh2_write32(a,d,sh2)
 
 // some stuff from sh2comn.h
 #define T	0x00000001
@@ -47,6 +47,18 @@ void sh2_execute(SH2 *sh2_, int cycles)
 	do
 	{
 		UINT32 opcode;
+
+		if (sh2->test_irq && !sh2->delay && sh2->pending_level > ((sh2->sr >> 4) & 0x0f))
+		{
+			if (sh2->pending_irl > sh2->pending_int_irq)
+				sh2_do_irq(sh2, sh2->pending_irl, 64 + sh2->pending_irl/2);
+			else {
+				sh2_do_irq(sh2, sh2->pending_int_irq, sh2->pending_int_vector);
+				sh2->pending_int_irq = 0; // auto-clear
+				sh2->pending_level = sh2->pending_irl;
+			}
+			sh2->test_irq = 0;
+		}
 
 		if (sh2->delay)
 		{
@@ -83,14 +95,6 @@ void sh2_execute(SH2 *sh2_, int cycles)
 		default: op1111(opcode); break;
 		}
 
-		if (sh2->test_irq && !sh2->delay)
-		{
-			if (sh2->pending_irl > sh2->pending_int_irq)
-				sh2_irl_irq(sh2, sh2->pending_irl);
-			else
-				sh2_internal_irq(sh2, sh2->pending_int_irq, sh2->pending_int_vector);
-			sh2->test_irq = 0;
-		}
 		sh2->icount--;
 	}
 	while (sh2->icount > 0 || sh2->delay);	/* can't interrupt before delay */
@@ -124,15 +128,6 @@ void __attribute__((regparm(2))) sh2_do_op(SH2 *sh2_, int opcode)
 		case 13<<12: op1101(opcode); break;
 		case 14<<12: op1110(opcode); break;
 		default: op1111(opcode); break;
-	}
-
-	if (sh2->test_irq)
-	{
-		if (sh2->pending_irl > sh2->pending_int_irq)
-			sh2_irl_irq(sh2, sh2->pending_irl);
-		else
-			sh2_internal_irq(sh2, sh2->pending_int_irq, sh2->pending_int_vector);
-		sh2->test_irq = 0;
 	}
 }
 
