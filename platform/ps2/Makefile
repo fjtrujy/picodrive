@@ -6,6 +6,7 @@ use_musashi = 0
 use_mz80 = 0
 #profile = 1
 asm_memory = 1
+use_sh2mame = 1
 
 ifeq "$(profile)" "1"
 EE_GPVAL = -G0
@@ -68,14 +69,21 @@ EE_CFLAGS += -D_USE_CZ80
 EE_OBJS += cpu/cz80/cz80.o
 endif
 # sh2
+EE_OBJS += cpu/sh2/sh2.o
+ifeq "$(use_sh2mame)" "1"
 EE_OBJS += cpu/sh2mame/sh2pico.o
+EE_OBJS += cpu/sh2/mame/sh2pico.o
+ else
+ endif
+EE_OBJS += cpu/drc/cmn.o
+
 
 vpath %.c = ../..
 vpath %.s = ../..
 vpath %.S = ../..
 
 DIRS = platform platform/gp2x platform/common pico pico/cd pico/pico pico/sound pico/carthw/svp \
-    pico/32x zlib unzip cpu cpu/musashi cpu/fame cpu/mz80 cpu/cz80 cpu/sh2mame
+    pico/32x zlib unzip cpu cpu/musashi cpu/fame cpu/mz80 cpu/cz80 cpu/sh2/mame cpu/drc
 
 %.o : %.c
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@

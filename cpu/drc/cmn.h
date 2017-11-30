@@ -1,6 +1,8 @@
+#ifndef _EE
 typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
+#endif
 
 #define DRC_TCACHE_SIZE         (512*1024)
 
