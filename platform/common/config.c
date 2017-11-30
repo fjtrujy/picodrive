@@ -23,6 +23,11 @@ static char *mystrip(char *str);
 #include <pico/pico.h>
 
 #define NL "\n"
+// always output DOS endlines
+#ifdef _WIN32
+#define NL "\n"
+#else
+#endif
 
 static int seek_sect(FILE *f, const char *section)
 {

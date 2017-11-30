@@ -41,22 +41,30 @@ void p32x_sh2_write32(unsigned int a, unsigned int d, int id);
 
 void sh2_reset(SH2 *sh2)
 {
-	int save_is_slave;
-	void *save_irqcallback;
-
-	save_irqcallback = sh2->irq_callback;
-	save_is_slave = sh2->is_slave;
-
-	memset(sh2, 0, sizeof(SH2));
-
-	sh2->is_slave = save_is_slave;
-	sh2->irq_callback = save_irqcallback;
-
 	sh2->pc = RL(0);
 	sh2->r[15] = RL(4);
 	sh2->sr = I;
+	sh2->vbr = 0;
+	sh2->pending_int_irq = 0;
+}
 
-	sh2->internal_irq_level = -1;
+static void sh2_do_irq(SH2 *sh2, int level, int vector)
+{
+	sh2->irq_callback(sh2->is_slave, level);
+
+	sh2->r[15] -= 4;
+	WL(sh2->r[15], sh2->sr);		/* push SR onto stack */
+	sh2->r[15] -= 4;
+	WL(sh2->r[15], sh2->pc);		/* push PC onto stack */
+
+	/* set I flags in SR */
+	sh2->sr = (sh2->sr & ~I) | (level << 4);
+
+	/* fetch PC */
+	sh2->pc = RL(sh2->vbr + vector * 4);
+
+	/* 13 cycles at best */
+	sh2_icount -= 13;
 }
 
 /* Execute cycles - returns number of cycles actually run */
@@ -64,6 +72,7 @@ int sh2_execute(SH2 *sh2_, int cycles)
 {
 	sh2 = sh2_;
 	sh2_icount = cycles;
+	sh2->cycles_aim += cycles;
 
 	do
 	{
@@ -71,15 +80,18 @@ int sh2_execute(SH2 *sh2_, int cycles)
 
 		if (sh2->delay)
 		{
+			sh2->ppc = sh2->delay;
 			opcode = RW(sh2->delay);
 			sh2->pc -= 2;
 		}
 		else
+		{
+			sh2->ppc = sh2->pc;
 			opcode = RW(sh2->pc);
+		}
 
 		sh2->delay = 0;
 		sh2->pc += 2;
-		sh2->ppc = sh2->pc;
 
 		switch (opcode & ( 15 << 12))
 		{
@@ -103,13 +115,15 @@ int sh2_execute(SH2 *sh2_, int cycles)
 
 		if (sh2->test_irq && !sh2->delay)
 		{
-			if (sh2->pending_irq)
-				sh2_irl_irq(sh2, sh2->pending_irq);
+			if (sh2->pending_irl > sh2->pending_int_irq)
+				sh2_irl_irq(sh2, sh2->pending_irl);
+			else
+				sh2_internal_irq(sh2, sh2->pending_int_irq, sh2->pending_int_vector);
 			sh2->test_irq = 0;
 		}
 		sh2_icount--;
 	}
-	while (sh2_icount > 0);
+	while (sh2_icount > 0 || sh2->delay);	/* can't interrupt before delay */
 
 	return cycles - sh2_icount;
 }
@@ -122,29 +136,21 @@ void sh2_init(SH2 *sh2, int is_slave)
 
 void sh2_irl_irq(SH2 *sh2, int level)
 {
-	int vector;
-
-	sh2->pending_irq = level;
-
+	sh2->pending_irl = level;
 	if (level <= ((sh2->sr >> 4) & 0x0f))
-		/* masked */
 		return;
 
-	sh2->irq_callback(sh2->is_slave, level);
-	vector = 64 + level/2;
+	sh2_do_irq(sh2, level, 64 + level/2);
+}
 
-	sh2->r[15] -= 4;
-	WL(sh2->r[15], sh2->sr);		/* push SR onto stack */
-	sh2->r[15] -= 4;
-	WL(sh2->r[15], sh2->pc);		/* push PC onto stack */
+void sh2_internal_irq(SH2 *sh2, int level, int vector)
+{
+	sh2->pending_int_irq = level;
+	sh2->pending_int_vector = vector;
+	if (level <= ((sh2->sr >> 4) & 0x0f))
+		return;
 
-	/* set I flags in SR */
-	sh2->sr = (sh2->sr & ~I) | (level << 4);
-
-	/* fetch PC */
-	sh2->pc = RL(sh2->vbr + vector * 4);
-
-	/* 13 cycles at best */
-	sh2_icount -= 13;
+	sh2_do_irq(sh2, level, vector);
+	sh2->pending_int_irq = 0; // auto-clear
 }
 

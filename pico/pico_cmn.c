@@ -5,6 +5,7 @@
 #define CYCLES_M68K_VINT_LAG  68
 #define CYCLES_M68K_ASD      148
 #define CYCLES_S68K_LINE     795
+#define CYCLES_S68K_VINT_LAG 111
 #define CYCLES_S68K_ASD      241
 
 // pad delay (for 6 button pads)
@@ -15,27 +16,9 @@
   }
 
 // CPUS_RUN
-#ifndef RUN_SH2S
-#define RUN_SH2S
-#endif
-
-#ifndef PICO_CD
+#ifndef CPUS_RUN
 #define CPUS_RUN(m68k_cycles,s68k_cycles) \
-{ \
-    SekRunM68k(m68k_cycles); \
-    RUN_SH2S \
-}
-#else
-#define CPUS_RUN(m68k_cycles,s68k_cycles) \
-{ \
-    if ((PicoOpt&POPT_EN_MCD_PSYNC) && (Pico_mcd->m.busreq&3) == 1) { \
-      SekRunPS(m68k_cycles, s68k_cycles); /* "better/perfect sync" */ \
-    } else { \
-      SekRunM68k(m68k_cycles); \
-      if ((Pico_mcd->m.busreq&3) == 1) /* no busreq/no reset */ \
-        SekRunS68k(s68k_cycles); \
-    } \
-}
+  SekRunM68k(m68k_cycles)
 #endif
 
 static int PicoFrameHints(void)
@@ -101,7 +84,7 @@ static int PicoFrameHints(void)
     check_cd_dma();
 #endif
 #ifdef PICO_32X
-    p32x_pwm_irq_check();
+    p32x_timers_do(1);
 #endif
 
     // H-Interrupts:
@@ -173,7 +156,7 @@ static int PicoFrameHints(void)
   check_cd_dma();
 #endif
 #ifdef PICO_32X
-  p32x_pwm_irq_check();
+  p32x_timers_do(1);
 #endif
 
   // Last H-Int:
@@ -196,7 +179,7 @@ static int PicoFrameHints(void)
   // there must be a delay after vblank bit is set and irq is asserted (Mazin Saga)
   // also delay between F bit (bit 7) is set in SR and IRQ happens (Ex-Mutants)
   // also delay between last H-int and V-int (Golden Axe 3)
-  SekRunM68k(CYCLES_M68K_VINT_LAG);
+  CPUS_RUN(CYCLES_M68K_VINT_LAG, CYCLES_S68K_VINT_LAG);
 
   if (pv->reg[1]&0x20) {
     elprintf(EL_INTS, "vint: @ %06x [%i]", SekPc, SekCycleCnt);
@@ -219,7 +202,7 @@ static int PicoFrameHints(void)
   // Run scanline:
   if (Pico.m.dma_xfers) SekCyclesBurn(CheckDMA());
   CPUS_RUN(CYCLES_M68K_LINE - CYCLES_M68K_VINT_LAG - CYCLES_M68K_ASD,
-    CYCLES_S68K_LINE - CYCLES_S68K_ASD);
+    CYCLES_S68K_LINE - CYCLES_S68K_VINT_LAG - CYCLES_S68K_ASD);
 
 #ifdef PICO_CD
   update_chips();
@@ -244,7 +227,7 @@ static int PicoFrameHints(void)
     check_cd_dma();
 #endif
 #ifdef PICO_32X
-    p32x_pwm_irq_check();
+    p32x_timers_do(1);
 #endif
 
     // Run scanline:

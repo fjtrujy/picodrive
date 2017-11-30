@@ -21,7 +21,7 @@ void (*PicoCartMemSetup)(void);
 void (*PicoCartLoadProgressCB)(int percent) = NULL;
 void (*PicoCDLoadProgressCB)(const char *fname, int percent) = NULL; // handled in Pico/cd/cd_file.c
 
-static void PicoCartDetect(void);
+static void PicoCartDetect(const char *carthw_cfg);
 
 /* cso struct */
 typedef struct _cso_struct
@@ -378,23 +378,21 @@ int pm_close(pm_file *fp)
   return ret;
 }
 
-
-static void Byteswap(unsigned char *data,int len)
+// byteswap, data needs to be int aligned, src can match dst
+void Byteswap(void *dst, const void *src, int len)
 {
-  int i=0;
+  const unsigned int *ps = src;
+  unsigned int *pd = dst;
+  int i, m;
 
-  if (len<2) return; // Too short
+  if (len < 2)
+    return;
 
-  do
-  {
-    unsigned short *pd=(unsigned short *)(data+i);
-    int value=*pd; // Get 2 bytes
-
-    value=(value<<8)|(value>>8); // Byteswap it
-    *pd=(unsigned short)value; // Put 2b ytes
-    i+=2;
+  m = 0x00ff00ff;
+  for (i = 0; i < len / 4; i++) {
+    unsigned int t = ps[i];
+    pd[i] = ((t & m) << 8) | ((t & ~m) >> 8);
   }
-  while (i+2<=len);
 }
 
 // Interleve a 16k block and byteswap
@@ -524,7 +522,7 @@ int PicoCartLoad(pm_file *f,unsigned char **prom,unsigned int *psize,int is_sms)
       elprintf(EL_STATUS, "SMD format detected.");
       DecodeSmd(rom,size); size-=0x200; // Decode and byteswap SMD
     }
-    else Byteswap(rom,size); // Just byteswap
+    else Byteswap(rom, rom, size); // Just byteswap
   }
   else
   {
@@ -543,7 +541,7 @@ int PicoCartLoad(pm_file *f,unsigned char **prom,unsigned int *psize,int is_sms)
 }
 
 // Insert a cartridge:
-int PicoCartInsert(unsigned char *rom,unsigned int romsize)
+int PicoCartInsert(unsigned char *rom, unsigned int romsize, const char *carthw_cfg)
 {
   // notaz: add a 68k "jump one op back" opcode to the end of ROM.
   // This will hang the emu, but will prevent nasty crashes.
@@ -574,7 +572,7 @@ int PicoCartInsert(unsigned char *rom,unsigned int romsize)
   carthw_chunks = NULL;
 
   if (!(PicoAHW & (PAHW_MCD|PAHW_SMS)))
-    PicoCartDetect();
+    PicoCartDetect(carthw_cfg);
 
   // setup correct memory map for loaded ROM
   switch (PicoAHW) {
@@ -621,9 +619,9 @@ static unsigned int rom_crc32(void)
   elprintf(EL_STATUS, "caclulating CRC32..");
 
   // have to unbyteswap for calculation..
-  Byteswap(Pico.rom, Pico.romsize);
+  Byteswap(Pico.rom, Pico.rom, Pico.romsize);
   crc = crc32(0, Pico.rom, Pico.romsize);
-  Byteswap(Pico.rom, Pico.romsize);
+  Byteswap(Pico.rom, Pico.rom, Pico.romsize);
   return crc;
 }
 
@@ -697,16 +695,16 @@ static int is_expr(const char *expr, char **pr)
   return 1;
 }
 
-static void parse_carthw(int *fill_sram)
+static void parse_carthw(const char *carthw_cfg, int *fill_sram)
 {
   int line = 0, any_checks_passed = 0, skip_sect = 0;
   int tmp, rom_crc = 0;
   char buff[256], *p, *r;
   FILE *f;
 
-  f = fopen("carthw.cfg", "r");
+  f = fopen(carthw_cfg, "r");
   if (f == NULL) {
-    elprintf(EL_STATUS, "couldn't open carthw.txt!");
+    elprintf(EL_STATUS, "couldn't open carthw.cfg!");
     return;
   }
 
@@ -926,7 +924,7 @@ no_checks:
 /*
  * various cart-specific things, which can't be handled by generic code
  */
-static void PicoCartDetect(void)
+static void PicoCartDetect(const char *carthw_cfg)
 {
   int fill_sram = 0;
 
@@ -956,7 +954,8 @@ static void PicoCartDetect(void)
   SRam.eeprom_bit_in = 0;
   SRam.eeprom_bit_out= 0;
 
-  parse_carthw(&fill_sram);
+  if (carthw_cfg != NULL)
+    parse_carthw(carthw_cfg, &fill_sram);
 
   if (SRam.flags & SRF_ENABLED)
   {

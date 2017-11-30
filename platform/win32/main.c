@@ -1,26 +1,40 @@
-#include "app.h"
-#include "version.h"
-#include <crtdbg.h>
+#include <windows.h>
 #include <commdlg.h>
-#include "../../common/readpng.h"
-#include "../../common/config.h"
+#include <stdio.h>
+
+#include "../../pico/pico.h"
+#include "../common/readpng.h"
+#include "../common/config.h"
+#include "../common/lprintf.h"
+#include "../common/emu.h"
+#include "../common/menu.h"
+#include "../common/input.h"
+#include "../common/plat.h"
+#include "version.h"
+#include "direct.h"
+#include "in_vk.h"
 
 char *romname=NULL;
 HWND FrameWnd=NULL;
 RECT FrameRectMy;
+RECT EmuScreenRect = { 0, 0, 320, 224 };
 int lock_to_1_1 = 1;
 static HWND PicoSwWnd=NULL, PicoPadWnd=NULL;
 
-int MainWidth=720,MainHeight=480;
-
 static HMENU mmain = 0, mdisplay = 0, mpicohw = 0;
-static int rom_loaded = 0;
 static HBITMAP ppad_bmp = 0;
 static HBITMAP ppage_bmps[7] = { 0, };
 static char rom_name[0x20*3+1];
 static int main_wnd_as_pad = 0;
 
-static void UpdateRect()
+static HANDLE loop_enter_event, loop_end_event;
+
+void error(char *text)
+{
+  MessageBox(FrameWnd, text, "Error", 0);
+}
+
+static void UpdateRect(void)
 {
   WINDOWINFO wi;
   memset(&wi, 0, sizeof(wi));
@@ -131,7 +145,7 @@ static void PrepareForROM(void)
 
   PicoPicohw.pen_pos[0] =
   PicoPicohw.pen_pos[1] = 0x8000;
-  PicoPadAdd = 0;
+  in_vk_add_pl12 = 0;
 
   ret = extract_rom_name(rom_name, rom_data + 0x150, 0x20);
   if (ret == 0)
@@ -167,57 +181,48 @@ static void PrepareForROM(void)
 
 static void LoadROM(const char *cmdpath)
 {
-  static char rompath[MAX_PATH] = { 0, };
-  unsigned char *rom_data_new = NULL;
-  unsigned int rom_size = 0;
-  pm_file *rom = NULL;
-  int oldwait=LoopWait;
-  int i, ret;
+  char rompath[MAX_PATH];
+  int ret;
 
-  if (cmdpath) {
+  if (cmdpath != NULL && strlen(cmdpath)) {
     strcpy(rompath, cmdpath + (cmdpath[0] == '\"' ? 1 : 0));
-    if (rompath[strlen(rompath)-1] == '\"') rompath[strlen(rompath)-1] = 0;
-    if (strlen(rompath) > 4) rom = pm_open(rompath);
+    if (rompath[strlen(rompath)-1] == '\"')
+      rompath[strlen(rompath)-1] = 0;
   }
-
-  if (!rom) {
-    OPENFILENAME of; ZeroMemory(&of, sizeof(OPENFILENAME));
-    of.lStructSize = sizeof(OPENFILENAME);
-    of.lpstrFilter = "ROMs\0*.smd;*.bin;*.gen;*.zip\0";
-    of.lpstrFile = rompath; rompath[0] = 0;
+  else {
+    OPENFILENAME of; ZeroMemory(&of, sizeof(of));
+    rompath[sizeof(rompath) - 1] = 0;
+    strncpy(rompath, rom_fname_loaded, sizeof(rompath) - 1);
+    of.lStructSize = sizeof(of);
+    of.lpstrFilter = "ROMs, CD images\0*.smd;*.bin;*.gen;*.zip;*.32x;*.sms;*.iso;*.cso;*.cue\0"
+                     "whatever\0*.*\0";
+    of.lpstrFile = rompath;
     of.nMaxFile = MAX_PATH;
     of.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
     of.hwndOwner = FrameWnd;
-    if (!GetOpenFileName(&of)) return;
-    rom = pm_open(rompath);
-    if (!rom) { error("failed to open ROM"); return; }
+    if (!GetOpenFileName(&of))
+      return;
   }
 
-  ret=PicoCartLoad(rom, &rom_data_new, &rom_size);
-  pm_close(rom);
-  if (ret) {
-    error("failed to load ROM");
+  if (engineState == PGS_Running) {
+    engineState = PGS_Paused;
+    WaitForSingleObject(loop_end_event, 5000);
+  }
+
+  ret = emu_reload_rom(rompath);
+  if (ret == 0) {
+    extern char menu_error_msg[]; // HACK..
+    error(menu_error_msg);
     return;
   }
 
-  // halt the work thread..
-  // just a hack, should've used proper sync. primitives here, but who will use this emu anyway..
-  LoopWaiting=0;
-  LoopWait=1;
-  for (i = 0; LoopWaiting == 0 && i < 10; i++) Sleep(100);
-
-  PicoCartUnload();
-  PicoCartInsert(rom_data_new, rom_size);
-
   PrepareForROM();
-
-  rom_loaded = 1;
-  romname = rompath;
-  LoopWait=0;
+  engineState = PGS_Running;
+  SetEvent(loop_enter_event);
 }
 
-static int rect_widths[4]  = { 320, 256, 640, 512 };
-static int rect_heights[4] = { 224, 224, 448, 448 };
+static const int rect_widths[4]  = { 320, 256, 640, 512 };
+static const int rect_heights[4] = { 224, 224, 448, 448 };
 
 // Window proc for the frame window:
 static LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
@@ -227,38 +232,64 @@ static LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
   int i;
   switch (msg)
   {
-    case WM_CLOSE:   PostQuitMessage(0); return 0;
-    case WM_DESTROY: FrameWnd=NULL; break; // Blank handle
+    case WM_CLOSE:
+      PostQuitMessage(0);
+      return 0;
+    case WM_DESTROY:
+      FrameWnd = NULL; // Blank the handle
+      break;
     case WM_SIZE:
     case WM_MOVE:
-    case WM_SIZING:  UpdateRect(); break;
+    case WM_SIZING:
+      UpdateRect();
+      if (lock_to_1_1 && FrameRectMy.right - FrameRectMy.left != 0 &&
+          (FrameRectMy.right - FrameRectMy.left != EmuScreenRect.right - EmuScreenRect.left ||
+           FrameRectMy.bottom - FrameRectMy.top != EmuScreenRect.bottom - EmuScreenRect.top)) {
+        lock_to_1_1 = 0;
+        CheckMenuItem(mdisplay, 1104, MF_UNCHECKED);
+      }
+      break;
     case WM_COMMAND:
       switch (LOWORD(wparam))
       {
-        case 1000: LoadROM(NULL); break;
-        case 1001: PicoReset(); return 0;
-        case 1002: PostQuitMessage(0); return 0;
+        case 1000:
+          LoadROM(NULL);
+          break;
+        case 1001:
+          emu_reset_game();
+          return 0;
+        case 1002:
+          PostQuitMessage(0);
+          return 0;
         case 1100:
         case 1101:
         case 1102:
         case 1103:
-          LoopWait=1; // another sync hack
-          for (i = 0; !LoopWaiting && i < 10; i++) Sleep(10);
+//          LoopWait=1; // another sync hack
+//          for (i = 0; !LoopWaiting && i < 10; i++) Sleep(10);
           FrameRectMy.right  = FrameRectMy.left + rect_widths[wparam&3];
           FrameRectMy.bottom = FrameRectMy.top  + rect_heights[wparam&3];
           AdjustWindowRect(&FrameRectMy, WS_OVERLAPPEDWINDOW, 1);
           MoveWindow(hwnd, FrameRectMy.left, FrameRectMy.top,
             FrameRectMy.right-FrameRectMy.left, FrameRectMy.bottom-FrameRectMy.top, 1);
           UpdateRect();
-          if (HIWORD(wparam) == 0) { // locally sent
-            lock_to_1_1=0;
-            CheckMenuItem(mdisplay, 1104, MF_UNCHECKED);
-          }
-          if (rom_loaded) LoopWait=0;
+          lock_to_1_1 = 0;
+          CheckMenuItem(mdisplay, 1104, MF_UNCHECKED);
+//          if (rom_loaded) LoopWait=0;
           return 0;
         case 1104:
-          lock_to_1_1=!lock_to_1_1;
+          lock_to_1_1 = !lock_to_1_1;
           CheckMenuItem(mdisplay, 1104, lock_to_1_1 ? MF_CHECKED : MF_UNCHECKED);
+          /* FALLTHROUGH */
+        case 2000: // EmuScreenRect/FrameRectMy sync request
+          if (!lock_to_1_1)
+            return 0;
+          FrameRectMy.right  = FrameRectMy.left + (EmuScreenRect.right - EmuScreenRect.left);
+	  FrameRectMy.bottom = FrameRectMy.top  + (EmuScreenRect.bottom - EmuScreenRect.top);
+          AdjustWindowRect(&FrameRectMy, WS_OVERLAPPEDWINDOW, 1);
+          MoveWindow(hwnd, FrameRectMy.left, FrameRectMy.top,
+            FrameRectMy.right-FrameRectMy.left, FrameRectMy.bottom-FrameRectMy.top, 1);
+          UpdateRect();
           return 0;
         case 1210:
         case 1211:
@@ -285,17 +316,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
           InvalidateRect(PicoSwWnd, NULL, 1);
           return 0;
         case 1300:
-          MessageBox(FrameWnd, "PicoDrive v" VERSION " (c) notaz, 2006-2008\n"
-              "SVP and Pico demo edition\n\n"
-              "Credits:\n"
-              "fDave: base code of PicoDrive, GenaDrive (the frontend)\n"
-              "Chui: Fame/C\n"
-              "NJ: CZ80\n"
-              "MAME devs: YM2612 and SN76496 cores\n"
-              "Stéphane Dallongeville: Gens code, base of Fame/C (C68K), CZ80\n"
-              "Tasco Deluxe: SVP RE work\n"
-              "Pierpaolo Prazzoli: info about SSP16 chips\n",
-              "About", 0);
+          MessageBox(FrameWnd, plat_get_credits(), "About", 0);
           return 0;
       }
       break;
@@ -307,41 +328,33 @@ static LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
       if (PtInRect(&rc, pt)) break;
       PicoPicohw.pen_pos[0] |= 0x8000;
       PicoPicohw.pen_pos[1] |= 0x8000;
-      PicoPadAdd = 0;
+      in_vk_add_pl12 = 0;
       break;
-    case WM_LBUTTONDOWN: PicoPadAdd |=  0x20; return 0;
-    case WM_LBUTTONUP:   PicoPadAdd &= ~0x20; return 0;
+    case WM_LBUTTONDOWN: in_vk_add_pl12 |=  0x20; return 0;
+    case WM_LBUTTONUP:   in_vk_add_pl12 &= ~0x20; return 0;
     case WM_MOUSEMOVE:
       if (!main_wnd_as_pad) break;
       PicoPicohw.pen_pos[0] = 0x03c + (320 * LOWORD(lparam) / (FrameRectMy.right - FrameRectMy.left));
       PicoPicohw.pen_pos[1] = 0x1fc + (232 * HIWORD(lparam) / (FrameRectMy.bottom - FrameRectMy.top));
       SetTimer(FrameWnd, 100, 1000, NULL);
       break;
+    case WM_KEYDOWN:
+      if (wparam == VK_TAB) {
+        emu_reset_game();
+	break;
+      }
+      if (wparam == VK_ESCAPE) {
+        LoadROM(NULL);
+	break;
+      }
+      in_vk_keydown(wparam);
+      break;
+    case WM_KEYUP:
+      in_vk_keyup(wparam);
+      break;
   }
 
   return DefWindowProc(hwnd,msg,wparam,lparam);
-}
-
-static void key_down(WPARAM key)
-{
-  switch (key) {
-    case VK_LEFT:  PicoPadAdd |=    4; break;
-    case VK_RIGHT: PicoPadAdd |=    8; break;
-    case VK_UP:    PicoPadAdd |=    1; break;
-    case VK_DOWN:  PicoPadAdd |=    2; break;
-    case 'X':      PicoPadAdd |= 0x10; break;
-  }
-}
-
-static void key_up(WPARAM key)
-{
-  switch (key) {
-    case VK_LEFT:  PicoPadAdd &= ~0x04; break;
-    case VK_RIGHT: PicoPadAdd &= ~0x08; break;
-    case VK_UP:    PicoPadAdd &= ~0x01; break;
-    case VK_DOWN:  PicoPadAdd &= ~0x02; break;
-    case 'X':      PicoPadAdd &= ~0x10; break;
-  }
 }
 
 static LRESULT CALLBACK PicoSwWndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
@@ -352,16 +365,16 @@ static LRESULT CALLBACK PicoSwWndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lp
   switch (msg)
   {
     case WM_DESTROY: PicoSwWnd=NULL; break;
-    case WM_LBUTTONDOWN: PicoPadAdd |=  0x20; return 0;
-    case WM_LBUTTONUP:   PicoPadAdd &= ~0x20; return 0;
+    case WM_LBUTTONDOWN: in_vk_add_pl12 |=  0x20; return 0;
+    case WM_LBUTTONUP:   in_vk_add_pl12 &= ~0x20; return 0;
     case WM_MOUSEMOVE:
       if (HIWORD(lparam) < 0x20) break;
       PicoPicohw.pen_pos[0] = 0x03c + LOWORD(lparam) * 2/3;
       PicoPicohw.pen_pos[1] = 0x2f8 + HIWORD(lparam) - 0x20;
       SetTimer(FrameWnd, 100, 1000, NULL);
       break;
-    case WM_KEYDOWN: key_down(wparam); break;
-    case WM_KEYUP:   key_up(wparam);   break;
+    case WM_KEYDOWN: in_vk_keydown(wparam); break;
+    case WM_KEYUP:   in_vk_keyup(wparam);   break;
     case WM_PAINT:
       hdc = BeginPaint(hwnd, &ps);
       if (ppage_bmps[PicoPicohw.page] == NULL)
@@ -381,6 +394,10 @@ static LRESULT CALLBACK PicoSwWndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lp
       }
       EndPaint(hwnd, &ps);
       return 0;
+    case WM_CLOSE:
+      ShowWindow(hwnd, SW_HIDE);
+      CheckMenuItem(mpicohw, 1210, MF_UNCHECKED);
+      return 0;
   }
 
   return DefWindowProc(hwnd,msg,wparam,lparam);
@@ -394,15 +411,15 @@ static LRESULT CALLBACK PicoPadWndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM l
   switch (msg)
   {
     case WM_DESTROY: PicoPadWnd=NULL; break;
-    case WM_LBUTTONDOWN: PicoPadAdd |=  0x20; return 0;
-    case WM_LBUTTONUP:   PicoPadAdd &= ~0x20; return 0;
+    case WM_LBUTTONDOWN: in_vk_add_pl12 |=  0x20; return 0;
+    case WM_LBUTTONUP:   in_vk_add_pl12 &= ~0x20; return 0;
     case WM_MOUSEMOVE:
       PicoPicohw.pen_pos[0] = 0x03c + LOWORD(lparam);
       PicoPicohw.pen_pos[1] = 0x1fc + HIWORD(lparam);
       SetTimer(FrameWnd, 100, 1000, NULL);
       break;
-    case WM_KEYDOWN: key_down(wparam); break;
-    case WM_KEYUP:   key_up(wparam);   break;
+    case WM_KEYDOWN: in_vk_keydown(wparam); break;
+    case WM_KEYUP:   in_vk_keyup(wparam);   break;
     case WM_PAINT:
       if (ppad_bmp == NULL) break;
       hdc = BeginPaint(hwnd, &ps);
@@ -411,6 +428,10 @@ static LRESULT CALLBACK PicoPadWndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM l
       BitBlt(hdc, 0, 0, 320, 240, hdc2, 0, 0, SRCCOPY);
       EndPaint(hwnd, &ps);
       DeleteDC(hdc2);
+      return 0;
+    case WM_CLOSE:
+      ShowWindow(hwnd, SW_HIDE);
+      CheckMenuItem(mpicohw, 1211, MF_UNCHECKED);
       return 0;
   }
 
@@ -444,8 +465,8 @@ static int FrameInit()
   wc.lpfnWndProc=PicoPadWndProc;
   RegisterClass(&wc);
 
-  rect.right =320;//MainWidth;
-  rect.bottom=224;//MainHeight;
+  rect.right =320;
+  rect.bottom=224;
 
   // Adjust size of windows based on borders:
   style=WS_OVERLAPPEDWINDOW;
@@ -502,7 +523,7 @@ static int FrameInit()
   UpdateRect();
 
   // create Pico windows
-  style = WS_OVERLAPPED|WS_CAPTION|WS_BORDER;
+  style = WS_OVERLAPPED|WS_CAPTION|WS_BORDER|WS_SYSMENU;
   rect.left=rect.top=0;
   rect.right =320;
   rect.bottom=224;
@@ -524,26 +545,62 @@ static int FrameInit()
 
 // --------------------
 
-static DWORD WINAPI ThreadCode(void *)
+static DWORD WINAPI work_thread(void *x)
 {
-  LoopCode();
+  while (engineState != PGS_Quit) {
+    WaitForSingleObject(loop_enter_event, INFINITE);
+    if (engineState != PGS_Running)
+      continue;
+
+    printf("loop..\n");
+    emu_loop();
+    SetEvent(loop_end_event);
+  }
+
   return 0;
 }
 
-int WINAPI WinMain(HINSTANCE,HINSTANCE,LPSTR cmdline,int)
+// XXX: use main.c
+void xxinit(void)
+{
+  /* in_init() must go before config, config accesses in_ fwk */
+  in_init();
+  pemu_prep_defconfig();
+  emu_read_config(0, 0);
+  config_readlrom(PicoConfigFile);
+
+  plat_init();
+  in_probe();
+
+  emu_init();
+  menu_init();
+}
+
+
+int WINAPI WinMain(HINSTANCE p1, HINSTANCE p2, LPSTR cmdline, int p4)
 {
   MSG msg;
-  int ret=0;
-  DWORD tid=0;
-  HANDLE thread=NULL;
+  DWORD tid = 0;
+  HANDLE thread;
+  int ret;
 
+  xxinit();
   FrameInit();
-  ret=LoopInit(); if (ret) goto end0;
+  ret = DirectInit();
+  if (ret)
+    goto end0;
 
-  // Make another thread to run LoopCode():
-  LoopQuit=0;
-  LoopWait=1; // wait for ROM to be loaded
-  thread=CreateThread(NULL,0,ThreadCode,NULL,0,&tid);
+  loop_enter_event = CreateEvent(NULL, 0, 0, NULL);
+  if (loop_enter_event == NULL)
+    goto end0;
+
+  loop_end_event = CreateEvent(NULL, 0, 0, NULL);
+  if (loop_end_event == NULL)
+    goto end0;
+
+  thread = CreateThread(NULL, 0, work_thread, NULL, 0, &tid);
+  if (thread == NULL)
+    goto end0;
 
   LoadROM(cmdline);
 
@@ -558,19 +615,21 @@ int WINAPI WinMain(HINSTANCE,HINSTANCE,LPSTR cmdline,int)
   }
 
   // Signal thread to quit and wait for it to exit:
-  LoopQuit=1; WaitForSingleObject(thread,5000);
+  if (engineState == PGS_Running) {
+    engineState = PGS_Quit;
+    WaitForSingleObject(loop_end_event, 5000);
+  }
   CloseHandle(thread); thread=NULL;
 
+  emu_write_config(0);
+  emu_finish();
+  //plat_finish();
+
 end0:
-  LoopExit();
+  DirectExit();
   DestroyWindow(FrameWnd);
 
-  _CrtDumpMemoryLeaks();
+//  _CrtDumpMemoryLeaks();
   return 0;
-}
-
-extern void error(char *text)
-{
-  MessageBox(FrameWnd, text, "Error", 0);
 }
 

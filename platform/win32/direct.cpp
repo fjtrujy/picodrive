@@ -1,40 +1,28 @@
-#include "app.h"
-
-#ifdef USE_D3D
-// d3d
-static IDirect3D8 *Direct3D=NULL;
-IDirect3DDevice8 *Device=NULL;
-IDirect3DSurface8 *DirectBack=NULL; // Back Buffer
-
-static IDirect3DVertexBuffer8 *VertexBuffer=NULL;
-
-struct CustomVertex
-{
-  float x,y,z; // Vertex cordinates
-  unsigned int colour;
-  float u,v; // Texture coordinates
-};
-#define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1)
-
-static CustomVertex VertexList[4];
-#endif
-
 // ddraw
 #include <ddraw.h>
+#include "../common/lprintf.h"
+#include "direct.h"
+#include "main.h"
 
-LPDIRECTDRAW7        m_pDD = NULL;
-LPDIRECTDRAWSURFACE7 m_pddsFrontBuffer = NULL;
-LPDIRECTDRAWSURFACE7 m_pddsBackBuffer = NULL;
+#define EmuWidth 320
+#define EmuHeight 240
+
+#define RELEASE(x) if (x) x->Release();  x=NULL;
+#define LOGFAIL() lprintf("fail: %s %s:%i\n", __FUNCTION__, __FILE__, __LINE__)
+
+static LPDIRECTDRAW7        m_pDD = NULL;
+static LPDIRECTDRAWSURFACE7 m_pddsFrontBuffer = NULL;
+static LPDIRECTDRAWSURFACE7 m_pddsBackBuffer = NULL;
 
 // quick and dirty stuff..
-static void DirectExitDDraw()
+void DirectExit(void)
 {
   RELEASE(m_pddsBackBuffer);
   RELEASE(m_pddsFrontBuffer);
   RELEASE(m_pDD);
 }
 
-static int DirectDrawInit()
+int DirectInit(void)
 {
   HRESULT ret;
   LPDIRECTDRAWCLIPPER pcClipper = NULL;
@@ -80,14 +68,14 @@ static int DirectDrawInit()
 
 fail:
   RELEASE(pcClipper);
-  DirectExitDDraw();
+  DirectExit();
   return 1;
 }
 
-static int DirectScreenDDraw()
+int DirectScreen(const void *emu_screen)
 {
+  const unsigned short *ps = (const unsigned short *)emu_screen;
   DDSURFACEDESC2 sd;
-  unsigned short *ps=EmuScreen;
   int ret, x, y;
 
   memset(&sd, 0, sizeof(sd));
@@ -144,9 +132,9 @@ static int DirectScreenDDraw()
   return 0;
 }
 
-static int DirectClearDDraw(unsigned int colour)
+int DirectClear(unsigned int colour)
 {
-  int ret;
+  int ret = 0;
   DDBLTFX ddbltfx;
   ZeroMemory( &ddbltfx, sizeof(ddbltfx) );
   ddbltfx.dwSize      = sizeof(ddbltfx);
@@ -158,7 +146,7 @@ static int DirectClearDDraw(unsigned int colour)
   return 0;
 }
 
-static int DirectPresentDDraw()
+int DirectPresent(void)
 {
   int ret = 0;
   if (FrameRectMy.right - FrameRectMy.left > 0 && FrameRectMy.bottom - FrameRectMy.top > 0)
@@ -169,10 +157,25 @@ static int DirectPresentDDraw()
 
 
 /* D3D */
+#ifdef USE_D3D
+static IDirect3D8 *Direct3D=NULL;
+IDirect3DDevice8 *Device=NULL;
+IDirect3DSurface8 *DirectBack=NULL; // Back Buffer
+
+static IDirect3DVertexBuffer8 *VertexBuffer=NULL;
+
+struct CustomVertex
+{
+  float x,y,z; // Vertex cordinates
+  unsigned int colour;
+  float u,v; // Texture coordinates
+};
+#define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1)
+
+static CustomVertex VertexList[4];
 
 int DirectInit()
 {
-#if USE_D3D
   D3DPRESENT_PARAMETERS d3dpp;
   D3DDISPLAYMODE mode;
   int i,u,ret=0;
@@ -260,15 +263,11 @@ fail1:
 fail0:
   RELEASE(Direct3D)
 
-  // error("Failed to use Direct3D, trying DirectDraw..");
-#endif
-  // try DirectDraw
-  return DirectDrawInit();
+  return 1;
 }
 
 void DirectExit()
 {
-#ifdef USE_D3D
   TexScreenExit();
 
   // d3d
@@ -276,35 +275,28 @@ void DirectExit()
   RELEASE(DirectBack)
   RELEASE(Device)
   RELEASE(Direct3D)
-#endif
-  DirectExitDDraw();
 }
 
 int DirectClear(unsigned int colour)
 {
-#ifdef USE_D3D
   if (Device != NULL) {
     Device->Clear(0,NULL,D3DCLEAR_TARGET,colour,1.0f,0);
     return 0;
   }
-#endif
 
-  return DirectClearDDraw(colour);
+  return 1;
 }
 
 int DirectPresent()
 {
-#ifdef USE_D3D
   if (Device != NULL) {
     Device->Present(NULL,NULL,NULL,NULL);
     return 0;
   }
-#endif
 
-  return DirectPresentDDraw();
+  return 1;
 }
 
-#ifdef USE_D3D
 #define PI 3.14159265f
 
 static int MakeVertexList()
@@ -413,11 +405,6 @@ int DirectScreen()
   Device->EndScene();
 
   return 0;
-}
-#else
-int DirectScreen()
-{
-  return DirectScreenDDraw();
 }
 #endif
 

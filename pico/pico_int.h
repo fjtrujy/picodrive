@@ -45,12 +45,15 @@ extern struct Cyclone PicoCpuCM68k, PicoCpuCS68k;
 #define SekEndTimesliceS68k(after) PicoCpuCS68k.cycles=after
 #define SekPc (PicoCpuCM68k.pc-PicoCpuCM68k.membase)
 #define SekPcS68k (PicoCpuCS68k.pc-PicoCpuCS68k.membase)
+#define SekDar(x) PicoCpuCM68k.d[x]
+#define SekSr     CycloneGetSr(&PicoCpuCM68k)
 #define SekSetStop(x) { PicoCpuCM68k.state_flags&=~1; if (x) { PicoCpuCM68k.state_flags|=1; PicoCpuCM68k.cycles=0; } }
 #define SekSetStopS68k(x) { PicoCpuCS68k.state_flags&=~1; if (x) { PicoCpuCS68k.state_flags|=1; PicoCpuCS68k.cycles=0; } }
 #define SekIsStoppedS68k() (PicoCpuCS68k.state_flags&1)
 #define SekShouldInterrupt (PicoCpuCM68k.irq > (PicoCpuCM68k.srh&7))
 
 #define SekInterrupt(i) PicoCpuCM68k.irq=i
+#define SekIrqLevel     PicoCpuCM68k.irq
 
 #ifdef EMU_M68K
 #define EMU_CORE_DEBUG
@@ -69,6 +72,8 @@ extern M68K_CONTEXT PicoCpuFM68k, PicoCpuFS68k;
 #define SekEndTimesliceS68k(after) PicoCpuFS68k.io_cycle_counter=after
 #define SekPc     fm68k_get_pc(&PicoCpuFM68k)
 #define SekPcS68k fm68k_get_pc(&PicoCpuFS68k)
+#define SekDar(x) PicoCpuFM68k.dreg[x].D
+#define SekSr     PicoCpuFM68k.sr
 #define SekSetStop(x) { \
 	PicoCpuFM68k.execinfo &= ~FM68K_HALTED; \
 	if (x) { PicoCpuFM68k.execinfo |= FM68K_HALTED; PicoCpuFM68k.io_cycle_counter = 0; } \
@@ -81,6 +86,7 @@ extern M68K_CONTEXT PicoCpuFM68k, PicoCpuFS68k;
 #define SekShouldInterrupt fm68k_would_interrupt()
 
 #define SekInterrupt(irq) PicoCpuFM68k.interrupts[0]=irq
+#define SekIrqLevel       PicoCpuFM68k.interrupts[0]
 
 #ifdef EMU_M68K
 #define EMU_CORE_DEBUG
@@ -100,6 +106,8 @@ extern m68ki_cpu_core PicoCpuMM68k, PicoCpuMS68k;
 #define SekEndTimesliceS68k(after) PicoCpuMS68k.cyc_remaining_cycles=after
 #define SekPc m68k_get_reg(&PicoCpuMM68k, M68K_REG_PC)
 #define SekPcS68k m68k_get_reg(&PicoCpuMS68k, M68K_REG_PC)
+#define SekDar(x) PicoCpuMM68k.dar[x]
+#define SekSr m68k_get_reg(&PicoCpuMM68k, M68K_REG_SR)
 #define SekSetStop(x) { \
 	if(x) { SET_CYCLES(0); PicoCpuMM68k.stopped=STOP_LEVEL_STOP; } \
 	else PicoCpuMM68k.stopped=0; \
@@ -117,6 +125,7 @@ extern m68ki_cpu_core PicoCpuMM68k, PicoCpuMS68k;
 	m68k_set_irq(irq); \
 	m68k_set_context(oldcontext); \
 }
+#define SekIrqLevel (PicoCpuMM68k.int_level >> 8)
 
 #endif
 #endif // EMU_M68K
@@ -230,14 +239,23 @@ typedef void (z80_write_f)(unsigned int a, unsigned char data);
 
 #include "cpu/sh2mame/sh2.h"
 
-SH2 msh2, ssh2;
-#define ash2_end_run(after) sh2_icount = after
+extern SH2 sh2s[2];
+#define msh2 sh2s[0]
+#define ssh2 sh2s[1]
+
+#define ash2_end_run(after) if (sh2_icount > (after)) sh2_icount = after
+#define ash2_cycles_done() (sh2->cycles_aim - sh2_icount)
 
 #define sh2_pc(c)     (c) ? ssh2.ppc : msh2.ppc
 #define sh2_reg(c, x) (c) ? ssh2.r[x] : msh2.r[x]
 #define sh2_gbr(c)    (c) ? ssh2.gbr : msh2.gbr
 #define sh2_vbr(c)    (c) ? ssh2.vbr : msh2.vbr
 #define sh2_sr(c)     (c) ? ssh2.sr : msh2.sr
+
+#define sh2_set_gbr(c, v) \
+  { if (c) ssh2.gbr = v; else msh2.gbr = v; }
+#define sh2_set_vbr(c, v) \
+  { if (c) ssh2.vbr = v; else msh2.vbr = v; }
 
 // ---------------------------------------------------------
 
@@ -403,9 +421,13 @@ typedef struct
 
 // 32X
 #define P32XS_FM    (1<<15)
+#define P32XS_REN   (1<< 7)
+#define P32XS_nRES  (1<< 1)
+#define P32XS_ADEN  (1<< 0)
 #define P32XS2_ADEN (1<< 9)
 #define P32XS_FULL  (1<< 7) // DREQ FIFO full
 #define P32XS_68S   (1<< 2)
+#define P32XS_DMA   (1<< 1)
 #define P32XS_RV    (1<< 0)
 
 #define P32XV_nPAL  (1<<15) // VDP
@@ -434,6 +456,9 @@ typedef struct
 #define P32XI_CMD  (1 <<  8/2)
 #define P32XI_PWM  (1 <<  6/2)
 
+// peripheral reg access
+#define PREG8(regs,offs) ((unsigned char *)regs)[offs ^ 3]
+
 // real one is 4*2, but we use more because we don't lockstep
 #define DMAC_FIFO_LEN (4*4)
 #define PWM_BUFF_LEN 1024 // in one channel samples
@@ -442,9 +467,9 @@ struct Pico32x
 {
   unsigned short regs[0x20];
   unsigned short vdp_regs[0x10];
+  unsigned short sh2_regs[3];
   unsigned char pending_fb;
   unsigned char dirty_pal;
-  unsigned char pad[2];
   unsigned int emu_flags;
   unsigned char sh2irq_mask[2];
   unsigned char sh2irqi[2];      // individual
@@ -497,6 +522,7 @@ extern areaseek *areaSeek;
 extern areaclose *areaClose;
 
 // cart.c
+void Byteswap(void *dst, const void *src, int len);
 extern void (*PicoCartMemSetup)(void);
 extern void (*PicoCartUnloadHook)(void);
 
@@ -663,6 +689,7 @@ void Pico32xStartup(void);
 void PicoUnload32x(void);
 void PicoFrame32x(void);
 void p32x_update_irls(void);
+void p32x_reset_sh2s(void);
 
 // 32x/memory.c
 struct Pico32xMem *Pico32xMem;
@@ -672,7 +699,7 @@ void PicoWrite8_32x(unsigned int a, unsigned int d);
 void PicoWrite16_32x(unsigned int a, unsigned int d);
 void PicoMemSetup32x(void);
 void Pico32xSwapDRAM(int b);
-void p32x_poll_event(int is_vdp);
+void p32x_poll_event(int cpu_mask, int is_vdp);
 
 // 32x/draw.c
 void FinalizeLine32xRGB555(int sh, int line);
@@ -680,9 +707,9 @@ void FinalizeLine32xRGB555(int sh, int line);
 // 32x/pwm.c
 unsigned int p32x_pwm_read16(unsigned int a);
 void p32x_pwm_write16(unsigned int a, unsigned int d);
-void p32x_pwm_refresh(void);
-void p32x_pwm_irq_check(void);
 void p32x_pwm_update(int *buf32, int length, int stereo);
+void p32x_timers_do(int new_line);
+void p32x_timers_recalc(void);
 extern int pwm_frame_smp_cnt;
 
 /* avoid dependency on newer glibc */
@@ -716,6 +743,7 @@ static __inline int isspace_(int c)
 #define EL_CDREGS  0x00020000 /* MCD: register access */
 #define EL_CDREG3  0x00040000 /* MCD: register 3 only */
 #define EL_32X     0x00080000
+#define EL_PWM     0x00100000 /* 32X PWM stuff (LOTS of output) */
 
 #define EL_STATUS  0x40000000 /* status messages */
 #define EL_ANOMALY 0x80000000 /* some unexpected conditions (during emulation) */

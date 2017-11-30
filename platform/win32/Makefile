@@ -1,35 +1,29 @@
 # settings
-use_musashi = 1
-#use_fame = 1
+CROSS=i586-mingw32msvc-
+
+#use_musashi = 1
+use_fame = 1
 #use_mz80 = 1
-#profile = 1
-#fake_in_gp2x = 1
 
 -include Makefile.local
 
-ifeq "$(profile)" "1"
-CFLAGS += -O3 -Wall
-CFLAGS += -ftracer -fstrength-reduce -funroll-loops -fomit-frame-pointer -fstrict-aliasing -ffast-math
-CFLAGS += -fprofile-generate
-else
-CFLAGS += -ggdb -Wall -falign-functions=2
-endif
-DEFINES = _UNZIP_SUPPORT IO_STATS IN_EVDEV
-CFLAGS += -I../.. -I.
-LDFLAGS += -lX11 -lpthread
+CC = $(CROSS)gcc
+CXX = $(CROSS)g++
+LD = $(CROSS)ld
+STRIP = $(CROSS)strip
+
+DEFINES = _UNZIP_SUPPORT IN_VK
+CFLAGS += -O2 -Wall -falign-functions=2 -ffast-math
+CFLAGS += -I../.. -I. -I../../zlib/ -Idirectx/include/
+LDFLAGS += -mwindows -L. -Ldirectx/lib/ -lgdi32 -lcomdlg32 -lddraw -ldsound -ldxguid
 
 # frontend
-OBJS += platform/gp2x/emu.o blit.o in_evdev.o plat.o sndout_oss.o gp2x.o log_io.o
+OBJS += main.o plat.o direct.o dsnd.o in_vk.o
 
 # common
-OBJS += platform/common/main.o platform/common/emu.o platform/common/menu.o \
+OBJS += platform/common/emu.o platform/common/menu.o \
 	platform/common/config.o platform/common/fonts.o platform/common/readpng.o \
 	platform/common/input.o
-
-ifeq "$(fake_in_gp2x)" "1"
-DEFINES += IN_GP2X FAKE_IN_GP2X
-OBJS += platform/gp2x/in_gp2x.o
-endif
 
 # Pico
 OBJS += pico/area.o pico/cart.o pico/memory.o pico/pico.o pico/sek.o \
@@ -81,23 +75,26 @@ endif
 endif
 
 CFLAGS += $(addprefix -D,$(DEFINES))
+CXXFLAGS = $(CFLAGS)
 
 vpath %.c = ../..
 
 DIRS = platform platform/gp2x platform/common pico pico/cd pico/pico pico/sound pico/carthw/svp \
 	pico/32x zlib unzip cpu cpu/musashi cpu/fame cpu/mz80 cpu/cz80 cpu/sh2mame
 
-all: mkdirs PicoDrive
-clean: tidy
-	@$(RM) PicoDrive
-tidy:
-	$(RM) $(OBJS)
-	rm -rf $(DIRS)
-	@make -C ../../cpu/mz80/ clean
+TARGET = PicoDrive.exe
 
-PicoDrive : $(OBJS)
+all: mkdirs $(TARGET)
+clean: tidy
+	@$(RM) $(TARGET)
+tidy:
+	$(RM) $(OBJS) $(TARGET).map
+	rm -rf $(DIRS)
+
+$(TARGET) : $(OBJS)
 	@echo ">>>" $@
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) -lm -lpng -Wl,-Map=PicoDrive.map -o $@
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -lm -lpng -Wl,-Map=$(TARGET).map -o $@
+	$(STRIP) $@
 
 mkdirs:
 	@mkdir -p $(DIRS)
@@ -129,4 +126,14 @@ cpu/mz80/mz80.o : ../../cpu/mz80/mz80.asm
 cpu/fame/famec.o : ../../cpu/fame/famec.c ../../cpu/fame/famec_opcodes.h
 	@echo ">>>" $<
 	$(CC) $(CFLAGS) -Wno-unused -c $< -o $@
+
+# ----------- release -----------
+ifneq ($(findstring rel,$(MAKECMDGOALS)),)
+ifeq ($(VER),)
+$(error need VER)
+endif
+endif
+
+rel: $(TARGET) readme.txt carthw.cfg
+	zip -9 -j ../../PicoDrive_win32_$(VER).zip $^
 
