@@ -5,6 +5,7 @@ use_musashi = 0
 #use_fame = 1
 use_mz80 = 0
 #profile = 1
+asm_memory = 1
 
 ifeq "$(profile)" "1"
 EE_GPVAL = -G0
@@ -66,13 +67,15 @@ else
 EE_CFLAGS += -D_USE_CZ80
 EE_OBJS += cpu/cz80/cz80.o
 endif
+# sh2
+EE_OBJS += cpu/sh2mame/sh2pico.o
 
 vpath %.c = ../..
 vpath %.s = ../..
 vpath %.S = ../..
 
 DIRS = platform platform/gp2x platform/common pico pico/cd pico/pico pico/sound pico/carthw/svp \
-    pico/32x zlib unzip cpu cpu/musashi cpu/fame cpu/mz80 cpu/cz80
+    pico/32x zlib unzip cpu cpu/musashi cpu/fame cpu/mz80 cpu/cz80 cpu/sh2mame
 
 %.o : %.c
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
@@ -129,7 +132,7 @@ PFS_irx.o:
 
 ../../pico/memory.o : ../../pico/memory.c
 	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MEMORY_C -D_ASM_MEMORY_C_AMIPS
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MEMORY_C_AMIPS
 
 ../../pico/cd/memory.o : ../../pico/cd/memory.c
 	@echo ">>>" $<
