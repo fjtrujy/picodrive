@@ -251,13 +251,14 @@ int in_update(int *result)
 				ret |= in_gp2x_update(dev->drv_data, dev->binds, result);
 				break;
 #endif
-			case IN_DRVID_VK:
-				ret |= in_vk_update(dev->drv_data, dev->binds, result);
-				break;
-#ifdef IN_PS2		case 
-			IN_DRVID_PS2:
+#ifdef IN_PS2
+            case IN_DRVID_PS2:
 				ret |= in_ps2_update(dev->drv_data, dev->binds, result);
 				break;
+#else
+            case IN_DRVID_VK:
+                    ret |= in_vk_update(dev->drv_data, dev->binds, result);
+                    break;
 #endif
 			}
 		}
@@ -819,8 +820,9 @@ void in_init(void)
 #endif
 #ifdef IN_PS2
     in_ps2_init(&in_drivers[IN_DRVID_PS2]);
+#else
+    in_vk_init(&in_drivers[IN_DRVID_VK]);
 #endif
-	in_vk_init(&in_drivers[IN_DRVID_VK]);
 }
 
 #if 0
