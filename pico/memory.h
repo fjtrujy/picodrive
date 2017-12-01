@@ -5,9 +5,10 @@
 typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
-typedef unsigned long  uptr; // unsigned pointer-sized int
 
 #endif
+
+typedef unsigned long  uptr; // unsigned pointer-sized int
 
 #define M68K_MEM_SHIFT 16
 // minimum size we can map

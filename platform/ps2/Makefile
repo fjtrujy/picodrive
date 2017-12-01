@@ -71,7 +71,6 @@ endif
 # sh2
 EE_OBJS += cpu/sh2/sh2.o
 ifeq "$(use_sh2mame)" "1"
-EE_OBJS += cpu/sh2mame/sh2pico.o
 EE_OBJS += cpu/sh2/mame/sh2pico.o
  else
  endif
