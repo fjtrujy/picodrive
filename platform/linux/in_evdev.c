@@ -126,11 +126,17 @@ static const char * const in_evdev_keys[KEY_CNT] = {
 
 static void in_evdev_probe(void)
 {
+	long keybits[KEY_CNT / sizeof(long) / 8];
+	long absbits[(ABS_MAX+1) / sizeof(long) / 8];
 	int i;
+
+	// the kernel might support and return less keys then we know about,
+	// so make sure the buffers are clear.
+	memset(keybits, 0, sizeof(keybits));
+	memset(absbits, 0, sizeof(absbits));
 
 	for (i = 0;; i++)
 	{
-		int keybits[KEY_CNT / sizeof(int)], absbits[(ABS_MAX+1)/sizeof(int)];
 		int support = 0, count = 0;
 		in_evdev_t *dev;
 		int u, ret, fd;
@@ -405,16 +411,20 @@ static const struct {
 	{ KEY_LEFT,	PBTN_LEFT },
 	{ KEY_RIGHT,	PBTN_RIGHT },
 	{ KEY_ENTER,	PBTN_MOK },
-	{ BTN_A,	PBTN_MOK },
+	{ KEY_KP2,	PBTN_MOK },
 	{ BTN_TRIGGER,	PBTN_MOK },
 	{ KEY_ESC,	PBTN_MBACK },
-	{ BTN_B,	PBTN_MBACK },
+	{ KEY_KP3,	PBTN_MBACK },
 	{ BTN_THUMB,	PBTN_MBACK },
 	{ KEY_A,	PBTN_MA2 },
+	{ KEY_KP4,	PBTN_MA2 },
 	{ KEY_S,	PBTN_MA3 },
+	{ KEY_KP1,	PBTN_MA3 },
 	{ KEY_BACKSLASH,  PBTN_MENU },
-	{ KEY_MENU,	  PBTN_MENU },
+	{ KEY_LEFTCTRL,   PBTN_MENU },
+	{ BTN_TL,	  PBTN_L },
 	{ KEY_LEFTBRACE,  PBTN_L },
+	{ BTN_TR,	  PBTN_R },
 	{ KEY_RIGHTBRACE, PBTN_R },
 };
 
@@ -477,15 +487,16 @@ static const struct {
 	{ KEY_LEFT,	IN_BINDTYPE_PLAYER12, 2 },
 	{ KEY_RIGHT,	IN_BINDTYPE_PLAYER12, 3 },
 	{ KEY_S,	IN_BINDTYPE_PLAYER12, 4 },	/* B */
-	{ BTN_B,	IN_BINDTYPE_PLAYER12, 4 },
+	{ KEY_KP3,	IN_BINDTYPE_PLAYER12, 4 },
 	{ KEY_D,	IN_BINDTYPE_PLAYER12, 5 },	/* C */
-	{ BTN_A,	IN_BINDTYPE_PLAYER12, 5 },
+	{ KEY_KP2,	IN_BINDTYPE_PLAYER12, 5 },
 	{ KEY_A,	IN_BINDTYPE_PLAYER12, 6 },	/* A */
-	{ BTN_Y,	IN_BINDTYPE_PLAYER12, 6 },
+	{ KEY_KP4,	IN_BINDTYPE_PLAYER12, 6 },
 	{ KEY_ENTER,	IN_BINDTYPE_PLAYER12, 7 },
-	{ BTN_START,	IN_BINDTYPE_PLAYER12, 7 },
+	{ KEY_LEFTALT,	IN_BINDTYPE_PLAYER12, 7 },
 	{ BTN_TL,	IN_BINDTYPE_EMU, PEVB_STATE_LOAD },
 	{ BTN_TR,	IN_BINDTYPE_EMU, PEVB_STATE_SAVE },
+	{ KEY_LEFTCTRL, IN_BINDTYPE_EMU, PEVB_MENU },
 };
 
 #define DEF_BIND_COUNT (sizeof(in_evdev_def_binds) / sizeof(in_evdev_def_binds[0]))

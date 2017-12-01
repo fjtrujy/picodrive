@@ -45,7 +45,7 @@ static const int me_sfont_w = 6, me_sfont_h = 10;
 // draws text to current bbp16 screen
 static void text_out16_(int x, int y, const char *text, int color)
 {
-	int i, l, u, tr, tg, tb, len;
+	int i, lh, tr, tg, tb, len;
 	unsigned short *dest = (unsigned short *)g_screen_ptr + x + y * g_screen_width;
 	tr = (color & 0xf800) >> 8;
 	tg = (color & 0x07e0) >> 3;
@@ -65,11 +65,17 @@ static void text_out16_(int x, int y, const char *text, int color)
 		len = p - text;
 	}
 
+	lh = me_mfont_h;
+	if (y + lh > g_screen_height)
+		lh = g_screen_height - y;
+
 	for (i = 0; i < len; i++)
 	{
 		unsigned char  *src = menu_font_data + (unsigned int)text[i] * me_mfont_w * me_mfont_h / 2;
 		unsigned short *dst = dest;
-		for (l = 0; l < me_mfont_h; l++, dst += g_screen_width - me_mfont_w)
+		int u, l;
+
+		for (l = 0; l < lh; l++, dst += g_screen_width - me_mfont_w)
 		{
 			for (u = me_mfont_w / 2; u > 0; u--, src++)
 			{
@@ -592,7 +598,16 @@ static void me_loop(menu_entry *menu, int *menu_sel, void (*draw_more)(void))
 /* ***************************************** */
 
 /* platform specific options and handlers */
+#if   defined(__GP2X__)
 #include "../gp2x/menu.c"
+#elif defined(PANDORA)
+#include "../pandora/menu.c"
+#else
+#define MENU_OPTIONS_GFX
+#define MENU_OPTIONS_ADV
+#define mgn_opt_renderer NULL /* TODO */
+#define menu_main_plat_draw NULL
+#endif
 
 static void draw_menu_credits(void)
 {
@@ -670,20 +685,18 @@ static void cdload_progress_cb(const char *fname, int percent)
 void menu_romload_prepare(const char *rom_name)
 {
 	const char *p = rom_name + strlen(rom_name);
+	int i;
 
 	while (p > rom_name && *p != '/')
 		p--;
 
-	/* fill both buffers, callbacks won't update in full */
-	plat_video_menu_begin();
-	smalltext_out16(1, 1, "Loading", 0xffff);
-	smalltext_out16(1, me_sfont_h, p, 0xffff);
-	plat_video_menu_end();
-
-	plat_video_menu_begin();
-	smalltext_out16(1, 1, "Loading", 0xffff);
-	smalltext_out16(1, me_sfont_h, p, 0xffff);
-	plat_video_menu_end();
+	/* fill all buffers, callbacks won't update in full */
+	for (i = 0; i < 3; i++) {
+		plat_video_menu_begin();
+		smalltext_out16(1, 1, "Loading", 0xffff);
+		smalltext_out16(1, me_sfont_h, p, 0xffff);
+		plat_video_menu_end();
+	}
 
 	PicoCartLoadProgressCB = load_progress_cb;
 	PicoCDLoadProgressCB = cdload_progress_cb;
@@ -767,8 +780,8 @@ static void draw_dirlist(char *curdir, struct dirent **namelist, int n, int sel)
 
 	plat_video_menu_begin();
 
-	darken_ptr = (short *)g_screen_ptr + g_screen_width * max_cnt/2 * 10;
-	menu_darken_bg(darken_ptr, darken_ptr, g_screen_width * 8, 0);
+	darken_ptr = (short *)g_screen_ptr + g_screen_width * max_cnt/2 * me_sfont_h;
+	menu_darken_bg(darken_ptr, darken_ptr, g_screen_width * me_sfont_h * 8 / 10, 0);
 
 	x = 5 + me_mfont_w + 1;
 	if (start - 2 >= 0)
@@ -1811,6 +1824,7 @@ static menu_entry e_menu_32x_options[] =
 {
 	mee_onoff("32X enabled",          MA_32XOPT_ENABLE_32X,   PicoOpt, POPT_EN_32X),
 	mee_onoff("PWM sound",            MA_32XOPT_PWM,          PicoOpt, POPT_EN_PWM),
+	mee_end,
 };
 
 static int menu_loop_32x_options(menu_id id, int keys)
@@ -1833,7 +1847,7 @@ static menu_entry e_menu_adv_options[] =
 	mee_onoff     ("Don't save last used ROM", MA_OPT2_NO_LAST_ROM,   currentConfig.EmuOpt, EOPT_NO_AUTOSVCFG),
 	mee_onoff     ("Disable idle loop patching",MA_OPT2_NO_IDLE_LOOPS,PicoOpt, POPT_DIS_IDLE_DET),
 	mee_onoff     ("Disable frame limiter",    MA_OPT2_NO_FRAME_LIMIT,currentConfig.EmuOpt, EOPT_NO_FRMLIMIT),
-	MENU_GP2X_OPTIONS_ADV
+	MENU_OPTIONS_ADV
 	mee_end,
 };
 
@@ -1855,7 +1869,7 @@ static int mh_opt_render(menu_id id, int keys)
 static menu_entry e_menu_gfx_options[] =
 {
 	mee_cust      ("Renderer",                 MA_OPT_RENDERER,       mh_opt_render, mgn_opt_renderer),
-	MENU_GP2X_OPTIONS_GFX
+	MENU_OPTIONS_GFX
 	mee_end,
 };
 
