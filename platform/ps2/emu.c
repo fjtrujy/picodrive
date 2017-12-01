@@ -173,9 +173,14 @@ static int EmuScanSlow16(unsigned int num)
 	return 0;
 }
 
-void pemu_update_display(const char *fps, const char *notice)
+void pemu_validate_config(void)
 {
-    blit(fps, notice, 0);
+    
+}
+
+void pemu_finalize_frame(const char *fps, const char *notice_msg)
+{
+    blit(fps, notice_msg, 0);
 }
 
 unsigned int plat_get_ticks_ms(void)
@@ -203,6 +208,11 @@ void plat_wait_till_us(unsigned int us_to)
     }
 }
 
+void plat_video_flip(void)
+{
+    
+}
+
 void plat_video_wait_vsync(void)
 {
 }
@@ -214,7 +224,7 @@ void plat_status_msg_clear(void)
 void plat_status_msg_busy_next(const char *msg)
 {
     plat_status_msg_clear();
-    pemu_update_display("", msg);
+    pemu_finalize_frame("", msg);
     emu_status_msg("");
     
     /* assumption: msg_busy_next gets called only when

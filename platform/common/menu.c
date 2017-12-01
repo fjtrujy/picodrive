@@ -1115,7 +1115,7 @@ static void draw_devicelist(char *curdir, struct dirent **namelist, int n, int s
     plat_video_menu_begin();
     
     if (!rom_loaded)
-        menu_darken_bg(g_screen_ptr, g_screen_width * g_screen_height, 0);
+        menu_darken_bg(g_screen_ptr, g_screen_ptr, g_screen_width * g_screen_height, 0);
     
     if (start - 2 >= 0)
         smalltext_out16(14, (start - 2)*10, curdir, 0xffff);

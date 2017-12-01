@@ -358,11 +358,6 @@ int plat_is_dir(const char *path)
     return isDir;
 }
 
-void plat_validate_config(void)
-{
-    
-}
-
 void ps2_memcpy_all_buffers(void *data, int offset, int len)
 {
     char *dst = (char *)data + offset;
@@ -393,33 +388,15 @@ void ps2_make_fb_bufferable(int yes)
 /* common */
 char cpu_clk_name[16] = "PS2 CPU clocks";
 
-static void menu_prepare_bg(int use_game_bg, int use_fg)
+static void prepare_bg(void)
 {
-    unsigned short int x, y;
-    
-    for(y=0; y<BackgroundTexture.Height; y++){
-        for(x=0; x<BackgroundTexture.Width; x++){
-            ((unsigned short int*)BackgroundTexture.Mem)[y*BackgroundTexture.Width+x]=0x8000;	//Clear screen to black.
-        }
-    }
-    
-    if (use_game_bg)
-    {
-        pemu_forced_frame(0);
-        
-        // darken the active framebuffer
-        unsigned short int *dst = (unsigned short int *)BackgroundTexture.Mem;
-        int i;
-        for (i = 224; i > 0; i--, dst += 320)
-        {
-            menu_darken_bg(dst, 320, 1);
-        }
-    }
-    else
-    {
-        // should really only happen once, on startup..
-        readpng(BackgroundTexture.Mem, "skin/background.png", READPNG_BG);
-    }
+    BackgroundTexture.Width=320;
+    BackgroundTexture.Height=240;
+    BackgroundTexture.PSM=GS_PSM_CT16;
+    BackgroundTexture.Delayed=GS_SETTING_ON;
+    BackgroundTexture.Filter=GS_FILTER_NEAREST;
+    BackgroundTexture.Mem=memalign(128, gsKit_texture_size_ee(BackgroundTexture.Width, BackgroundTexture.Height, BackgroundTexture.PSM));
+    gsKit_setup_tbw(&BackgroundTexture);
 }
 
 static void menu_uploadGraphics(void){
@@ -506,16 +483,6 @@ static inline void InitGS(void){
 
 void plat_video_menu_enter(int is_rom_loaded)
 {
-    BackgroundTexture.Width=320;
-    BackgroundTexture.Height=240;
-    BackgroundTexture.PSM=GS_PSM_CT16;
-    BackgroundTexture.Delayed=GS_SETTING_ON;
-    BackgroundTexture.Filter=GS_FILTER_NEAREST;
-    BackgroundTexture.Mem=memalign(128, gsKit_texture_size_ee(BackgroundTexture.Width, BackgroundTexture.Height, BackgroundTexture.PSM));
-    gsKit_setup_tbw(&BackgroundTexture);
-
-    menu_prepare_bg(is_rom_loaded, 1);
-    
     menu_uploadGraphics();
 }
 
@@ -697,6 +664,9 @@ void plat_init(void)
     InitGS();
     memset(&FrameBufferTexture, 0, sizeof(FrameBufferTexture));
     
+    prepare_bg();
+    g_menubg_ptr = BackgroundTexture.Mem;
+    
     //Mount the HDD partition, if required.
     if(BootDeviceID==BOOT_DEVICE_HDD){
         ps2_loadHDDModules();
@@ -714,6 +684,7 @@ void plat_init(void)
     else if(BootDeviceID==BOOT_DEVICE_MASS){
         //        WaitUntilDeviceIsReady(argv[0]);
     }
+    
 }
 
 void plat_finish(void)
