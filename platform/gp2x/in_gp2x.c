@@ -55,8 +55,8 @@ static int in_gp2x_get_mmsp2_bits(void)
 
 static int in_gp2x_get_wiz_bits(void)
 {
-	int value = 0;
-	read(gpiodev, &value, 4);
+	int r, value = 0;
+	r = read(gpiodev, &value, 4);
 	if (value & 0x02)
 		value |= 0x05;
 	if (value & 0x08)
@@ -80,6 +80,9 @@ static int in_gp2x_get_wiz_bits(void)
 }
 
 #ifdef FAKE_IN_GP2X
+volatile unsigned short *gp2x_memregs;
+gp2x_soc_t soc_detect(void) { return -1; }
+
 static int in_gp2x_get_fake_bits(void)
 {
 	extern int current_keys;

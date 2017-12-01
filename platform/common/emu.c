@@ -464,25 +464,25 @@ int emu_reload_rom(char *rom_fname)
 		// check for both gmv and rom
 		int dummy;
 		FILE *movie_file = fopen(rom_fname, "rb");
-		if(!movie_file) {
+		if (!movie_file) {
 			me_update_msg("Failed to open movie.");
 			return 0;
 		}
 		fseek(movie_file, 0, SEEK_END);
 		movie_size = ftell(movie_file);
 		fseek(movie_file, 0, SEEK_SET);
-		if(movie_size < 64+3) {
+		if (movie_size < 64+3) {
 			me_update_msg("Invalid GMV file.");
 			fclose(movie_file);
 			return 0;
 		}
 		movie_data = malloc(movie_size);
-		if(movie_data == NULL) {
+		if (movie_data == NULL) {
 			me_update_msg("low memory.");
 			fclose(movie_file);
 			return 0;
 		}
-		fread(movie_data, 1, movie_size, movie_file);
+		dummy = fread(movie_data, 1, movie_size, movie_file);
 		fclose(movie_file);
 		if (strncmp((char *)movie_data, "Gens Movie TEST", 15) != 0) {
 			me_update_msg("Invalid GMV file.");
@@ -730,6 +730,27 @@ static void make_config_cfg(char *cfg_buff_512)
 	cfg_buff_512[511] = 0;
 }
 
+void emu_prep_defconfig(void)
+{
+	memset(&defaultConfig, 0, sizeof(defaultConfig));
+	defaultConfig.EmuOpt    = 0x9d | EOPT_RAM_TIMINGS|EOPT_CONFIRM_SAVE|EOPT_EN_CD_LEDS;
+	defaultConfig.s_PicoOpt = POPT_EN_STEREO|POPT_EN_FM|POPT_EN_PSG|POPT_EN_Z80 |
+				  POPT_EN_MCD_PCM|POPT_EN_MCD_CDDA|POPT_EN_SVP_DRC|POPT_ACC_SPRITES |
+				  POPT_EN_32X|POPT_EN_PWM;
+	defaultConfig.s_PsndRate = 44100;
+	defaultConfig.s_PicoRegion = 0; // auto
+	defaultConfig.s_PicoAutoRgnOrder = 0x184; // US, EU, JP
+	defaultConfig.s_PicoCDBuffers = 0;
+	defaultConfig.Frameskip = -1; // auto
+	defaultConfig.volume = 50;
+	defaultConfig.gamma = 100;
+	defaultConfig.scaling = 0;
+	defaultConfig.turbo_rate = 15;
+
+	// platform specific overrides
+	pemu_prep_defconfig();
+}
+
 void emu_set_defconfig(void)
 {
 	memcpy(&currentConfig, &defaultConfig, sizeof(currentConfig));
@@ -786,7 +807,7 @@ int emu_read_config(int game, int no_defaults)
 		}
 	}
 
-	plat_validate_config();
+	pemu_validate_config();
 
 	// some sanity checks
 #ifdef PSP
@@ -1008,13 +1029,16 @@ int emu_save_load_game(int load, int sram)
 			sram_size = SRam.size;
 			sram_data = SRam.data;
 		}
-		if (!sram_data) return 0; // SRam forcefully disabled for this game
+		if (sram_data == NULL)
+			return 0; // SRam forcefully disabled for this game
 
 		if (load)
 		{
 			sramFile = fopen(saveFname, "rb");
-			if(!sramFile) return -1;
-			fread(sram_data, 1, sram_size, sramFile);
+			if (!sramFile)
+				return -1;
+			ret = fread(sram_data, 1, sram_size, sramFile);
+			ret = ret > 0 ? 0 : -1;
 			fclose(sramFile);
 			if ((PicoAHW & PAHW_MCD) && (PicoOpt&POPT_EN_MCD_RAMCART))
 				memcpy32((int *)Pico_mcd->bram, (int *)sram_data, 0x2000/4);
