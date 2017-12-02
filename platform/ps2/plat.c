@@ -369,6 +369,28 @@ void ps2_memset_all_buffers(int offset, int byte, int len)
     memset((char *)g_screen_ptr + offset, byte, len);
 }
 
+void *plat_mmap(unsigned long addr, size_t size)
+{
+    void *req, *ret;
+//    TODO FJTRUJY import mmap function
+//    req = (void *)addr;
+//    ret = mmap(req, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+//    if (ret == MAP_FAILED)
+//        return NULL;
+//    if (ret != req)
+//        printf("warning: mmaped to %p, requested %p\n", ret, req);
+    ret = calloc(1, size);
+    
+    return ret;
+}
+
+void plat_munmap(void *ptr, size_t size)
+{
+//    TODO FJTRUJY import munmap function
+//    munmap(ptr, size);
+    free(ptr);
+}
+
 void ps2_make_fb_bufferable(int yes)
 {
 //	int ret = 0;
@@ -620,7 +642,7 @@ void plat_early_init(void)
     ee_sema_t sema;
 
     SifInitRpc(0);
-//    while(!SifIopReset(NULL, 0)){}; // Comment this line if you don't wanna debug the output
+    while(!SifIopReset(NULL, 0)){}; // Comment this line if you don't wanna debug the output
 
     ChangeThreadPriority(GetThreadId(), MAIN_THREAD_PRIORITY);
 
