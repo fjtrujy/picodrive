@@ -15,7 +15,7 @@ use_sh2mame = 1
 ifeq "$(profile)" "1"
 GPVAL = -G0
 LDFLAGS += -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ee/lib -Tlinkfile -s
-CFLAGS += -mno-gpopt -O3 $(GPVAL) -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -g -DIN_PS2
+CFLAGS += -mno-gpopt -O3 $(GPVAL) -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -DIN_PS2
 else
 GPVAL = -G0
 LDFLAGS += -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ee/lib -Tlinkfile -s

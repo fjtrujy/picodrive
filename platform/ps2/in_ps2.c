@@ -8,11 +8,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
+
+#include <libpad.h>
+#include <kernel.h>
 
 #include "../common/input.h"
 #include "in_ps2.h"
@@ -20,12 +18,25 @@
 #define IN_PREFIX "ps2:"
 #define IN_PS2_NBUTTONS 32
 
+#define ANALOG_DEADZONE 0x60
+
+/* fake 'nub' btns */
+#define PBTN_NUB_L_UP    0x01000000
+#define PBTN_NUB_L_RIGHT 0x02000000
+#define PBTN_NUB_L_DOWN  0x04000000
+#define PBTN_NUB_L_LEFT  0x08000000
+#define PBTN_NUB_R_UP    0x10000000
+#define PBTN_NUB_R_RIGHT 0x20000000
+#define PBTN_NUB_R_DOWN  0x40000000
+#define PBTN_NUB_R_LEFT  0x80000000
+
+static unsigned char PadArea[2][256] ALIGNED(64);
+
 /* note: in_ps2 hadles combos (if 2 btns have the same bind,
  * both must be pressed for action to happen) */
 static int in_ps2_combo_keys = 0;
 static int in_ps2_combo_acts = 0;
 static int gpiodev = -1;	/* Wiz only */
-
 
 enum  { BTN_UP = 4,      BTN_LEFT = 7,      BTN_DOWN = 6,  BTN_RIGHT = 5,
     BTN_START = 3,   BTN_SELECT = 0,    BTN_L1 = 10,    BTN_R1 = 11,
@@ -41,9 +52,57 @@ static const char *in_ps2_keys[IN_PS2_NBUTTONS] = {
     [BTN_X]     = "X",     [BTN_SQUARE] = "SQUARE",      [BTN_CIRCLE] = "CIRCLE",    [BTN_TRIANGLE] = "TRIANGLE"
 };
 
+unsigned int ps2_pad_read(int port, int slot)
+{
+    struct padButtonStatus buttons;
+    unsigned int result;
+    int state;
+    
+    state = padGetState(port, slot);
+    if((state==PAD_STATE_STABLE) || (state==PAD_STATE_FINDCTP1)){
+        result=(padRead(port, slot, &buttons) != 0)?(0xffff^buttons.btns)&0xFFFF:0;
+        
+        if(buttons.mode>>4&0xF!=PAD_TYPE_DIGITAL){
+            // analog..
+            if (buttons.ljoy_h < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_L_LEFT;
+            if (buttons.ljoy_h > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_L_RIGHT;
+            if (buttons.ljoy_v < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_L_UP;
+            if (buttons.ljoy_v > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_L_DOWN;
+            
+            if (buttons.rjoy_h < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_R_LEFT;
+            if (buttons.rjoy_h > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_R_RIGHT;
+            if (buttons.rjoy_v < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_R_UP;
+            if (buttons.rjoy_v > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_R_DOWN;
+        }
+    }
+    else result=0;
+    
+    return result;
+}
+
+static void InitializePad(int port, int slot){
+    int state;
+    
+    if((state = padGetState(port, slot))!=PAD_STATE_DISCONN){
+        while((state!=PAD_STATE_STABLE) && (state!=PAD_STATE_FINDCTP1)){
+            state = padGetState(port, slot);
+            
+            if(state==PAD_STATE_DISCONN) return;
+        }
+        
+        padSetMainMode(port, slot, PAD_MMODE_DIGITAL, 2);    //It should be PAD_MMODE_UNLOCK, but the homebrew PS2SDK has its value set incorrectly (0 instead of 2).
+        
+        //Wait for the pad to become ready.
+        do{
+            state = padGetState(port, slot);
+        }while((state!=PAD_STATE_STABLE) && (state!=PAD_STATE_FINDCTP1) && (state!=PAD_STATE_DISCONN));
+    }
+}
+
+
 static int in_ps2_get_bits(void)
 {
-    return ps2_pad_read_all();
+    return(ps2_pad_read(0, 0)|ps2_pad_read(1, 0));
 }
 
 static int in_ps2_get_wiz_bits(void)
@@ -82,29 +141,11 @@ static int in_ps2_get_fake_bits(void)
 
 static void in_ps2_probe(void)
 {
-//    ps2_soc_t soc;
-//    
-//    soc = soc_detect();
-//    switch (soc)
-//    {
-//        case SOCID_MMSP2:
-//            in_ps2_get_bits = in_ps2_get_mmsp2_bits;
-//            break;
-//        case SOCID_POLLUX:
-//            gpiodev = open("/dev/GPIO", O_RDONLY);
-//            if (gpiodev < 0) {
-//                perror("in_ps2: couldn't open /dev/GPIO");
-//                return;
-//            }
-//            in_ps2_get_bits = in_ps2_get_wiz_bits;
-//            break;
-//        default:
-//#ifdef FAKE_IN_PS2
-//            in_ps2_get_bits = in_ps2_get_fake_bits;
-//            break;
-//#endif
-//            return;
-//    }
+    padInit(0);
+    padPortOpen(0, 0, PadArea[0]);
+    padPortOpen(1, 0, PadArea[1]);
+    InitializePad(0, 0);
+    InitializePad(1, 0);
     
     in_register(IN_PREFIX "PS2 pad", IN_DRVID_PS2, -1, (void *)1,
                 IN_PS2_NBUTTONS, 1);

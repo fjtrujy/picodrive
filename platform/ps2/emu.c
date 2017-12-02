@@ -6,12 +6,7 @@
 #include "plat_ps2.h"
 
 #include <kernel.h>
-#include <fileXio_rpc.h>
-#include <gsKit.h>
-#include <libpad.h>
 #include <audsrv.h>
-#include <unistd.h>
-#include <limits.h>
 
 #include "emu.h"
 #include "mp3.h"
@@ -40,11 +35,6 @@ unsigned char *PicoDraw2FB;
 
 extern GSGLOBAL *gsGlobal;
 extern void *_gp;
-
-static int combo_keys = 0, combo_acts = 0; // keys and actions which need button combos
-
-#define PICO_PEN_ADJUST_X 4
-#define PICO_PEN_ADJUST_Y 2
 
 static unsigned short int FrameBufferTextureVisibleWidth, FrameBufferTextureVisibleHeight;
 static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleOffsetY;	//From upper left-hand corner.
@@ -157,8 +147,6 @@ static void blitscreen_clut(void)
 	}
 }
 
-extern void *DrawLineDest;
-
 static int EmuScanSlow8(unsigned int num)
 {
 	DrawLineDest = (unsigned char *)g_screen_ptr + num*FrameBufferTexture.Width;
@@ -232,9 +220,15 @@ void plat_status_msg_busy_next(const char *msg)
     reset_timing = 1;
 }
 
+void ps2_memcpy_all_buffers(void *data, int offset, int len)
+{
+    char *dst = (char *)data + offset;
+    if (dst != data) memcpy(dst, data, len);
+}
+
 void plat_status_msg_busy_first(const char *msg)
 {
-    ps2_memcpy_all_buffers(g_screen_ptr, 0, 320*240*2);
+    ps2_memcpy_all_buffers(g_screen_ptr, 0, SCREEN_WIDTH*SCREEN_HEIGHT*2);
     plat_status_msg_busy_next(msg);
 }
 
@@ -269,7 +263,19 @@ static void cd_leds(void)
 	}
 }
 
-static void draw_pico_ptr(void);
+static void draw_pico_ptr(void)
+{
+    unsigned char *p = (unsigned char *)g_screen_ptr;
+    
+    // only if pen enabled and for 8bit mode
+    if (pico_inp_mode == 0 || (currentConfig.EmuOpt&0x80)) return;
+    
+    p += 512 * (pico_pen_y + PICO_PEN_ADJUST_Y);
+    p += pico_pen_x + PICO_PEN_ADJUST_X;
+    p[  -1] = 0xe0; p[   0] = 0xf0; p[   1] = 0xe0;
+    p[ 511] = 0xf0; p[ 512] = 0xf0; p[ 513] = 0xf0;
+    p[1023] = 0xe0; p[1024] = 0xf0; p[1025] = 0xe0;
+}
 
 static void blit(const char *fps, const char *notice, int lagging_behind)
 {
@@ -290,20 +296,6 @@ static void blit(const char *fps, const char *notice, int lagging_behind)
 	emu_draw(lagging_behind);
 }
 
-static void draw_pico_ptr(void)
-{
-	unsigned char *p = (unsigned char *)g_screen_ptr;
-
-	// only if pen enabled and for 8bit mode
-	if (pico_inp_mode == 0 || (currentConfig.EmuOpt&0x80)) return;
-
-	p += 512 * (pico_pen_y + PICO_PEN_ADJUST_Y);
-	p += pico_pen_x + PICO_PEN_ADJUST_X;
-	p[  -1] = 0xe0; p[   0] = 0xf0; p[   1] = 0xe0;
-	p[ 511] = 0xf0; p[ 512] = 0xf0; p[ 513] = 0xf0;
-	p[1023] = 0xe0; p[1024] = 0xf0; p[1025] = 0xe0;
-}
-
 void plat_debug_cat(char *str)
 {
 	strcat(str, (currentConfig.EmuOpt&0x80) ? "soft clut\n" : "hard clut\n");	//TODO: is this valid for this port?
@@ -313,13 +305,8 @@ void plat_debug_cat(char *str)
 static void vidResetMode(void)
 {
 //	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", !(currentConfig.EmuOpt&0x80)?8:16);
-
-	if(FrameBufferTexture.Mem!=NULL) free(FrameBufferTexture.Mem);
-	if(FrameBufferTexture.Clut!=NULL){
-		free(FrameBufferTexture.Clut);
-		FrameBufferTexture.Clut=NULL;
-	}
-	gsKit_vram_clear(gsGlobal);
+    ps2_ClearFrameBuffer();
+    
 	gsKit_clear(gsGlobal, GS_BLACK);
 
 	// bilinear filtering for the PSP and PS2.
@@ -328,7 +315,7 @@ static void vidResetMode(void)
 	if(!(PicoOpt&0x10)){	//Accurate (line) renderer.
 		FrameBufferTextureVisibleOffsetX=0;	//Nothing to hide here.
 		FrameBufferTextureVisibleOffsetY=0;
-		FrameBufferTexture.Width=320;
+		FrameBufferTexture.Width=SCREEN_WIDTH;
 		FrameBufferTexture.Height=(!(Pico.video.reg[1]&8))?224:240;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
 		FrameBufferTextureVisibleWidth=FrameBufferTexture.Width;
 		FrameBufferTextureVisibleHeight=FrameBufferTexture.Height;
@@ -405,6 +392,16 @@ static unsigned char sound_thread_exit = 0, sound_thread_stop = 0;
 static int sound_thread_id = -1;
 
 static void writeSound(int len);
+
+void ps2_SetAudioFormat(unsigned int rate){
+    struct audsrv_fmt_t AudioFmt;
+    
+    AudioFmt.bits = 16;
+    AudioFmt.freq = rate;
+    AudioFmt.channels = 2;
+    audsrv_set_format(&AudioFmt);
+    audsrv_set_volume(MAX_VOLUME);
+}
 
 static void sound_thread(void *args)
 {
