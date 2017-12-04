@@ -18,8 +18,6 @@
 #include <gsKit.h>
 #include <libpad.h>
 
-#include "emu.h"
-#include "mp3.h"
 #include "../common/posix.h"
 #include "../common/emu.h"
 #include "../common/menu.h"

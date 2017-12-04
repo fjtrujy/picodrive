@@ -8,10 +8,8 @@
 #include <kernel.h>
 #include <audsrv.h>
 
-#include "emu.h"
 #include "mp3.h"
 #include "asm_utils.h"
-#include "version.h"
 #include "../common/plat.h"
 #include "../common/menu.h"
 #include "../common/emu.h"
@@ -79,30 +77,6 @@ static void osd_text(int x, const char *text)
 	}
 }
 
-void emu_msg_cb(const char *msg)
-{
-	osd_text(4, msg);
-
-	/* assumption: emu_msg_cb gets called only when something slow is about to happen */
-	reset_timing = 1;
-}
-
-void pemu_prep_defconfig(void)
-{
-	unsigned int i;
-
-	memset(&defaultConfig, 0, sizeof(defaultConfig));
-	defaultConfig.EmuOpt    = 0x1d | 0x600; // | <- confirm_save, cd_leds, 8-bit acc rend
-    defaultConfig.s_PicoOpt = POPT_EN_STEREO|POPT_EN_FM|POPT_EN_PSG|POPT_EN_Z80 |
-    POPT_EN_MCD_PCM|POPT_EN_MCD_CDDA|POPT_EN_SVP_DRC|POPT_ACC_SPRITES |
-    POPT_EN_32X|POPT_EN_PWM;
-	defaultConfig.s_PsndRate = 44100;
-	defaultConfig.s_PicoRegion = 0; // auto
-	defaultConfig.s_PicoAutoRgnOrder = 0x184; // US, EU, JP
-	defaultConfig.s_PicoCDBuffers = 64;
-	defaultConfig.Frameskip = -1; // auto
-}
-
 static inline void do_pal_update(void)
 {
 	int i;
@@ -161,79 +135,15 @@ static int EmuScanSlow16(unsigned int num)
 	return 0;
 }
 
-void pemu_validate_config(void)
-{
-    
-}
-
-void pemu_finalize_frame(const char *fps, const char *notice_msg)
-{
-    blit(fps, notice_msg, 0);
-}
-
-unsigned int plat_get_ticks_ms(void)
-{
-    return plat_get_ticks_us()/1000;
-}
-
-unsigned int plat_get_ticks_us(void)
-{
-    return ps2_GetTicksInUsec();
-}
-
 void spend_cycles(int c)
 {
     DelayThread(c/295);
-}
-
-void plat_wait_till_us(unsigned int us_to)
-{
-    unsigned int now, diff;
-    diff = (us_to-plat_get_ticks_us())/1000;
-    
-    if (diff > 0 && diff < 50 ) { // This maximum is to avoid the restart cycle of the PS2 cpu_ticks
-        DelayThread(diff);
-    }
-}
-
-void plat_video_flip(void)
-{
-    
-}
-
-void plat_video_wait_vsync(void)
-{
-}
-
-void plat_status_msg_clear(void)
-{
-}
-
-void plat_status_msg_busy_next(const char *msg)
-{
-    plat_status_msg_clear();
-    pemu_finalize_frame("", msg);
-    emu_status_msg("");
-    
-    /* assumption: msg_busy_next gets called only when
-     * something slow is about to happen */
-    reset_timing = 1;
 }
 
 void ps2_memcpy_all_buffers(void *data, int offset, int len)
 {
     char *dst = (char *)data + offset;
     if (dst != data) memcpy(dst, data, len);
-}
-
-void plat_status_msg_busy_first(const char *msg)
-{
-    ps2_memcpy_all_buffers(g_screen_ptr, 0, SCREEN_WIDTH*SCREEN_HEIGHT*2);
-    plat_status_msg_busy_next(msg);
-}
-
-void plat_update_volume(int has_changed, int is_up)
-{
 }
 
 static void cd_leds(void)
@@ -294,11 +204,6 @@ static void blit(const char *fps, const char *notice, int lagging_behind)
 	ps2_DrawFrameBuffer(FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleOffsetY, FrameBufferTextureVisibleWidth+FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleHeight+FrameBufferTextureVisibleOffsetY);
 
 	emu_draw(lagging_behind);
-}
-
-void plat_debug_cat(char *str)
-{
-	strcat(str, (currentConfig.EmuOpt&0x80) ? "soft clut\n" : "hard clut\n");	//TODO: is this valid for this port?
 }
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
@@ -380,6 +285,47 @@ static void vidResetMode(void)
 	Pico.m.dirtyPal = 1;	//Since the VRAM for the CLUT has been reallocated, reupload it.
 }
 
+void emu_video_mode_change(int start_line, int line_count, int is_32cols)
+{
+    ps2_ClearScreen();
+}
+
+void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu)
+{
+    if (force_16bpp) {
+        PicoOpt &= ~POPT_ALT_RENDERER;
+        currentConfig.EmuOpt |= EOPT_16BPP;
+    }
+    /* alt, 16bpp, 8bpp */
+    else if (PicoOpt & POPT_ALT_RENDERER) {
+        PicoOpt &= ~POPT_ALT_RENDERER;
+        if (is_next)
+            currentConfig.EmuOpt |= EOPT_16BPP;
+    } else if (!(currentConfig.EmuOpt & EOPT_16BPP)) {
+        if (is_next)
+            PicoOpt |= POPT_ALT_RENDERER;
+        else
+            currentConfig.EmuOpt |= EOPT_16BPP;
+    } else {
+        currentConfig.EmuOpt &= ~EOPT_16BPP;
+        if (!is_next)
+            PicoOpt |= POPT_ALT_RENDERER;
+    }
+    
+    if (is_menu)
+        return;
+    
+    vidResetMode();
+    
+    if (PicoOpt & POPT_ALT_RENDERER) {
+        emu_status_msg(" 8bit fast renderer");
+    } else if (currentConfig.EmuOpt & EOPT_16BPP) {
+        emu_status_msg("16bit accurate renderer");
+    } else {
+        emu_status_msg(" 8bit accurate renderer");
+    }
+}
+
 /* sound stuff */
 #define SOUND_BLOCK_SIZE_NTSC (1470*2) // 1024 // 1152
 #define SOUND_BLOCK_SIZE_PAL  (1764*2)
@@ -390,8 +336,7 @@ static short *snd_playptr = NULL, *sndBuffer_endptr = NULL;
 static int samples_made = 0, samples_done = 0, samples_block = 0;
 static unsigned char sound_thread_exit = 0, sound_thread_stop = 0;
 static int sound_thread_id = -1;
-
-static void writeSound(int len);
+static unsigned char sound_thread_stack[0xA00] ALIGNED(128);
 
 void ps2_SetAudioFormat(unsigned int rate){
     struct audsrv_fmt_t AudioFmt;
@@ -443,9 +388,6 @@ static void sound_thread(void *args)
 	lprintf("sthr: exit\n");
 	ExitDeleteThread();
 }
-
-static unsigned char sound_thread_stack[0xA00] ALIGNED(128);
-
 static void sound_init(void)
 {
 	int ret;
@@ -470,65 +412,6 @@ static void sound_init(void)
 		lprintf("CreateThread failed: %d\n", sound_thread_id);
 }
 
-void pemu_sound_start(void)
-{
-	static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
-	int stereo;
-
-	SuspendThread(sound_thread_id);
-
-	samples_made = samples_done = 0;
-
-	if (PsndRate != PsndRate_old || (PicoOpt&0x0b) != (PicoOpt_old&0x0b) || Pico.m.pal != pal_old) {
-		PsndRerate(Pico.m.frame_count ? 1 : 0);
-	}
-	stereo=(PicoOpt&8)>>3;
-
-	samples_block = Pico.m.pal ? SOUND_BLOCK_SIZE_PAL : SOUND_BLOCK_SIZE_NTSC;
-	if (PsndRate <= 11025) samples_block /= 4;
-	else if (PsndRate <= 22050) samples_block /= 2;
-	sndBuffer_endptr = &sndBuffer[samples_block*SOUND_BLOCK_COUNT];
-
-	lprintf("starting audio: %i, len: %i, stereo: %i, pal: %i, block samples: %i\n",
-			PsndRate, PsndLen, stereo, Pico.m.pal, samples_block);
-
-	PicoWriteSound = writeSound;
-	memset(sndBuffer, 0, sizeof(sndBuffer));
-	snd_playptr = sndBuffer_endptr - samples_block;
-	samples_made = samples_block; // send 1 empty block first..
-	PsndOut = sndBuffer;
-	PsndRate_old = PsndRate;
-	PicoOpt_old  = PicoOpt;
-	pal_old = Pico.m.pal;
-
-	ps2_SetAudioFormat(PsndRate);
-
-	sound_thread_stop=0;
-	ResumeThread(sound_thread_id);
-	WakeupThread(sound_thread_id);
-}
-
-void pemu_sound_stop(void)
-{
-	sound_thread_stop=1;
-	WakeupThread(sound_thread_id);
-}
-
-/* wait until we can write more sound */
-void pemu_sound_wait(void)
-{
-	// TODO: test this
-	while (!sound_thread_exit && samples_made - samples_done > samples_block * 4)
-		DelayThread(10);
-}
-
-static void sound_deinit(void)
-{
-	sound_thread_exit = 1;
-	WakeupThread(sound_thread_id);
-	sound_thread_id = -1;
-}
-
 static void writeSound(int len)
 {
 	if (PicoOpt&8) len<<=1;
@@ -544,65 +427,23 @@ static void writeSound(int len)
 	}
 }
 
-void pemu_forced_frame(int opts)
+// All the PEMU Methods
+
+void pemu_prep_defconfig(void)
 {
-	int po_old = PicoOpt;
-	int eo_old = currentConfig.EmuOpt;
-
-	PicoOpt &= ~0x10;
-	PicoOpt |= opts|POPT_ACC_SPRITES;
-	currentConfig.EmuOpt |= 0x80;
-
-	vidResetMode();
-
-	PicoFrameDrawOnly();
-
-	PicoOpt = po_old;
-	currentConfig.EmuOpt = eo_old;
+    defaultConfig.EmuOpt    = 0x1d | 0x600; // | <- confirm_save, cd_leds, 8-bit acc rend
 }
 
-void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu)
+void pemu_validate_config(void)
 {
-    if (force_16bpp) {
-        PicoOpt &= ~POPT_ALT_RENDERER;
-        currentConfig.EmuOpt |= EOPT_16BPP;
-    }
-    /* alt, 16bpp, 8bpp */
-    else if (PicoOpt & POPT_ALT_RENDERER) {
-        PicoOpt &= ~POPT_ALT_RENDERER;
-        if (is_next)
-            currentConfig.EmuOpt |= EOPT_16BPP;
-    } else if (!(currentConfig.EmuOpt & EOPT_16BPP)) {
-        if (is_next)
-            PicoOpt |= POPT_ALT_RENDERER;
-        else
-            currentConfig.EmuOpt |= EOPT_16BPP;
-    } else {
-        currentConfig.EmuOpt &= ~EOPT_16BPP;
-        if (!is_next)
-            PicoOpt |= POPT_ALT_RENDERER;
-    }
-    
-    if (is_menu)
-        return;
-    
-    vidResetMode();
-    
-    if (PicoOpt & POPT_ALT_RENDERER) {
-        emu_status_msg(" 8bit fast renderer");
-    } else if (currentConfig.EmuOpt & EOPT_16BPP) {
-        emu_status_msg("16bit accurate renderer");
-    } else {
-        emu_status_msg(" 8bit accurate renderer");
-    }
 }
 
-void emu_video_mode_change(int start_line, int line_count, int is_32cols)
+void pemu_finalize_frame(const char *fps, const char *notice_msg)
 {
-    ps2_ClearScreen();
+    blit(fps, notice_msg, 0);
 }
 
-void emu_startSound(void)
+void pemu_sound_start(void)
 {
     static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
     int stereo;
@@ -640,8 +481,44 @@ void emu_startSound(void)
     WakeupThread(sound_thread_id);
 }
 
+void pemu_sound_stop(void)
+{
+    sound_thread_stop=1;
+    if (PsndOut != NULL) {
+        PsndOut = NULL;
+        WakeupThread(sound_thread_id);
+    }
+}
+
+/* wait until we can write more sound */
+void pemu_sound_wait(void)
+{
+    // TODO: test this
+    while (!sound_thread_exit && samples_made - samples_done > samples_block * 4)
+        DelayThread(10);
+}
+
+void pemu_forced_frame(int opts)
+{
+    int po_old = PicoOpt;
+    int eo_old = currentConfig.EmuOpt;
+    
+    PicoOpt &= ~0x10;
+    PicoOpt |= opts|POPT_ACC_SPRITES;
+    currentConfig.EmuOpt |= 0x80;
+    
+    vidResetMode();
+    
+    PicoFrameDrawOnly();
+    
+    PicoOpt = po_old;
+    currentConfig.EmuOpt = eo_old;
+}
+
 void pemu_loop_prep(void)
 {
+    static int mp3_init_done = 0;
+    
     FrameBufferTexture.Width=0;
     FrameBufferTexture.Height=0;
     FrameBufferTextureVisibleOffsetX=0;
@@ -656,35 +533,27 @@ void pemu_loop_prep(void)
 
     vidResetMode();
     
+    if (PicoAHW & PAHW_MCD) {
+        // mp3...
+        if (!mp3_init_done) {
+            int error;
+            error = mp3_init();
+            lprintf("Que mierda me han devuelto %i\n", error);
+            mp3_init_done = 1;
+            if (error) { engineState = PGS_Menu; return; }
+        }
+    }
+    
     // prepare sound stuff
     PsndOut = NULL;
     if (currentConfig.EmuOpt & 4)
     {
-        emu_startSound();
+        pemu_sound_start();
     }
 }
 
 void pemu_loop_end(void)
 {
-    ps2_ClearScreen();;
-}
-
-const char *plat_get_credits(void)
-{
-    return "PicoDrive v" VERSION " (c) notaz, 06-09\n\n"
-    "Returned life by fjtrujy (thanks sp193)\n/n"
-    "Credits:\n"
-    "fDave: Cyclone 68000 core,\n"
-    "      base code of PicoDrive\n"
-    "Reesy & FluBBa: DrZ80 core\n"
-    "MAME devs: YM2612 and SN76496 cores\n"
-    "rlyeh and others: minimal SDK\n"
-    "Squidge: mmuhack\n"
-    "Dzz: ARM940 sample\n"
-    "\n"
-    "Special thanks (for docs, ideas):\n"
-    " Charles MacDonald, Haze,\n"
-    " Stephane Dallongeville,\n"
-    " Lordus, Exophase, Rokas,\n"
-    " Nemesis, Tasco Deluxe";
+    pemu_sound_stop();
+    ps2_ClearScreen();
 }

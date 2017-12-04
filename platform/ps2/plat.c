@@ -9,6 +9,7 @@
 #include <gsInline.h>
 
 #include "plat_ps2.h"
+#include "version.h"
 
 #include "../common/plat.h"
 #include "../common/menu.h"
@@ -91,12 +92,6 @@ struct DisplayMode{
     unsigned short int width, height;
     unsigned short int VisibleWidth, VisibleHeight;
     unsigned short int StartX, StartY;
-};
-
-/* PS2 local */
-struct timeval {
-    u32 tv_sec;
-    u32 tv_usec;
 };
 
 //Methods
@@ -189,11 +184,6 @@ static void SetPWDOnPFS(const char *FullCWD_path){
         chdir(path);
         free(path);
     }
-}
-
-u32 ps2_GetTicksInUsec(void){
-//    return(clock()/(CLOCKS_PER_SEC*1000000UL));    //Broken.
-    return cpu_ticks()/295;
 }
 
 static inline unsigned int mSec2HSyncTicks(unsigned int msec){
@@ -343,74 +333,21 @@ void ps2_ClearScreen(void)
 
 void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2)
 {
-    //This results in scaling errors:
-/*    gsKit_prim_sprite_texture(gsGlobal, &FrameBufferTexture, ps2_screen_draw_startX, ps2_screen_draw_startY,
+    gsKit_prim_sprite_texture(gsGlobal, &FrameBufferTexture, ps2_screen_draw_startX, ps2_screen_draw_startY,
                                                         u1, v1,
                                                         ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height,
                                                         u2, v2,
-                                                        1, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00)); */
+                                                        1, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+}
 
-    //This is a custom drawing function, since gsKit_prim_sprite_texture_3d performs a series of weird calculations that result in the frame buffer being stretched a little. I think that those calculations were meant to achieve "pixel-perfect" sprite drawing, as demonstrated by jbit... but that doesn't seem to work well with nearest filtering. D:
-    gsKit_set_texfilter(gsGlobal, FrameBufferTexture.Filter);
-
-    u64* p_store;
-    u64* p_data;
-    int qsize = 4;
-    int bsize = 64;
-
-    int ix1 = (int)(ps2_screen_draw_startX * 16.0f) + gsGlobal->OffsetX;
-    int ix2 = (int)((ps2_screen_draw_startX+ps2_screen_draw_width) * 16.0f) + gsGlobal->OffsetX;
-    int iy1 = (int)(ps2_screen_draw_startY * 16.0f) + gsGlobal->OffsetY;
-    int iy2 = (int)((ps2_screen_draw_startY+ps2_screen_draw_height) * 16.0f) + gsGlobal->OffsetY;
-
-    int iu1 = (int)(u1 * 16.0f);
-    int iu2 = (int)(u2 * 16.0f);
-    int iv1 = (int)(v1 * 16.0f);
-    int iv2 = (int)(v2 * 16.0f);
-
-
-    int tw = 31 - (lzw(FrameBufferTexture.Width) + 1);
-    if(FrameBufferTexture.Width > (1<<tw))
-        tw++;
-
-    int th = 31 - (lzw(FrameBufferTexture.Height) + 1);
-    if(FrameBufferTexture.Height > (1<<th))
-        th++;
-
-    p_store = p_data = gsKit_heap_alloc(gsGlobal, qsize, bsize, GIF_PRIM_SPRITE_TEXTURED);
-
-    *p_data++ = GIF_TAG_SPRITE_TEXTURED(0);
-    *p_data++ = GIF_TAG_SPRITE_TEXTURED_REGS(gsGlobal->PrimContext);
-
-    if(FrameBufferTexture.VramClut == 0)
-    {
-        *p_data++ = GS_SETREG_TEX0(FrameBufferTexture.Vram/256, FrameBufferTexture.TBW, FrameBufferTexture.PSM,
-            tw, th, gsGlobal->PrimAlphaEnable, 0,
-            0, 0, 0, 0, GS_CLUT_STOREMODE_NOLOAD);
-    }
-    else
-    {
-        *p_data++ = GS_SETREG_TEX0(FrameBufferTexture.Vram/256, FrameBufferTexture.TBW, FrameBufferTexture.PSM,
-            tw, th, gsGlobal->PrimAlphaEnable, 0,
-            FrameBufferTexture.VramClut/256, FrameBufferTexture.ClutPSM, 0, 0, GS_CLUT_STOREMODE_LOAD);
-    }
-
-    *p_data++ = GS_SETREG_PRIM( GS_PRIM_PRIM_SPRITE, 0, 1, gsGlobal->PrimFogEnable,
-                gsGlobal->PrimAlphaEnable, gsGlobal->PrimAAEnable,
-                1, gsGlobal->PrimContext, 0);
-
-    *p_data++ = GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00);
-
-    *p_data++ = GS_SETREG_UV( iu1, iv1 );
-    *p_data++ = GS_SETREG_XYZ2( ix1, iy1, 1 );
-
-    *p_data++ = GS_SETREG_UV( iu2, iv2 );
-    *p_data++ = GS_SETREG_XYZ2( ix2, iy2, 1 );
+void ps2_SyncTextureChache(GSTEXTURE *texture)
+{
+    SyncDCache(texture->Mem, (void*)((unsigned int)texture->Mem+gsKit_texture_size_ee(texture->Width, texture->Height, texture->PSM)));
+    gsKit_texture_send_inline(gsGlobal, texture->Mem, texture->Width, texture->Height, texture->Vram, texture->PSM, texture->TBW, GS_CLUT_NONE);
 }
 
 static void ps2_redrawFrameBufferTexture(void){
-    SyncDCache(FrameBufferTexture.Mem, (void*)((unsigned int)FrameBufferTexture.Mem+gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM)));
-    gsKit_texture_send_inline(gsGlobal, FrameBufferTexture.Mem, FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.Vram, FrameBufferTexture.PSM, FrameBufferTexture.TBW, GS_CLUT_NONE);
+    ps2_SyncTextureChache(&FrameBufferTexture);
     ps2_DrawFrameBuffer(0, 0, FrameBufferTexture.Width, FrameBufferTexture.Height);
 }
 
@@ -423,6 +360,22 @@ void SyncFlipFB(void){
     PollSema(VBlankStartSema);    //Clear the semaphore to zero if it isn't already at zero, so that WaitSema will wait until the next VBlank start event.
     WaitSema(VBlankStartSema);
     FlipFBNoSync();
+}
+
+//Additional functions
+
+void lprintf(const char *fmt, ...)
+{
+    va_list vl;
+    
+    va_start(vl, fmt);
+    vprintf(fmt, vl);
+    va_end(vl);
+}
+
+//stdio.h has this defined, but it's missing.
+int setvbuf ( FILE * stream, char * buffer, int mode, size_t size ){
+    return -1;
 }
 
 // PLAT METHODS
@@ -479,8 +432,8 @@ void plat_video_menu_enter(int is_rom_loaded)
     FrameBufferTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM), GSKIT_ALLOC_USERBUFFER);
     
     BackgroundTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(BackgroundTexture.Width, BackgroundTexture.Height, BackgroundTexture.PSM), GSKIT_ALLOC_USERBUFFER);
-    SyncDCache(BackgroundTexture.Mem, (void*)((unsigned int)BackgroundTexture.Mem+gsKit_texture_size_ee(BackgroundTexture.Width, BackgroundTexture.Height, BackgroundTexture.PSM)));
-    gsKit_texture_send_inline(gsGlobal, BackgroundTexture.Mem, BackgroundTexture.Width, BackgroundTexture.Height, BackgroundTexture.Vram, BackgroundTexture.PSM, BackgroundTexture.TBW, GS_CLUT_NONE);
+    
+    ps2_SyncTextureChache(&BackgroundTexture);
 }
 
 void plat_video_menu_begin(void)
@@ -591,11 +544,7 @@ void plat_finish(void)
 
 int plat_wait_event(int *fds_hnds, int count, int timeout_ms)
 {
-    struct timeval tv, *timeout = NULL;
-    int i, ret, fdmax = -1;
-    //    fd_set fdset;
-    
-    return ret;
+    return -1;
 }
 
 void plat_sleep_ms(int ms)
@@ -603,18 +552,81 @@ void plat_sleep_ms(int ms)
     DelayThread(ms);
 }
 
-//Additional functions
-
-void lprintf(const char *fmt, ...)
+unsigned int plat_get_ticks_ms(void)
 {
-	va_list vl;
-
-	va_start(vl, fmt);
-	vprintf(fmt, vl);
-	va_end(vl);
+    return plat_get_ticks_us()/1000;
 }
 
-//stdio.h has this defined, but it's missing.
-int setvbuf ( FILE * stream, char * buffer, int mode, size_t size ){
-    return -1;
+unsigned int plat_get_ticks_us(void)
+{
+    //    return(clock()/(CLOCKS_PER_SEC*1000000UL));    //Broken.
+    return cpu_ticks()/295;
+}
+
+void plat_wait_till_us(unsigned int us_to)
+{
+    unsigned int now, diff;
+    diff = (us_to-plat_get_ticks_us())/1000;
+    
+    if (diff > 0 && diff < 50 ) { // This maximum is to avoid the restart cycle of the PS2 cpu_ticks
+        DelayThread(diff);
+    }
+}
+
+void plat_video_flip(void)
+{
+}
+
+void plat_video_wait_vsync(void)
+{
+}
+
+void plat_status_msg_clear(void)
+{
+}
+
+void plat_status_msg_busy_next(const char *msg)
+{
+    plat_status_msg_clear();
+    pemu_finalize_frame("", msg);
+    emu_status_msg("");
+    
+    /* assumption: msg_busy_next gets called only when
+     * something slow is about to happen */
+    reset_timing = 1;
+}
+
+void plat_status_msg_busy_first(const char *msg)
+{
+    ps2_memcpy_all_buffers(g_screen_ptr, 0, SCREEN_WIDTH*SCREEN_HEIGHT*2);
+    plat_status_msg_busy_next(msg);
+}
+
+void plat_update_volume(int has_changed, int is_up)
+{
+}
+
+void plat_debug_cat(char *str)
+{
+    strcat(str, (currentConfig.EmuOpt&0x80) ? "soft clut\n" : "hard clut\n");    //TODO: is this valid for this port?
+}
+
+const char *plat_get_credits(void)
+{
+    return "PicoDrive v" VERSION " (c) notaz, 06-09\n\n"
+    "Returned life by fjtrujy (thanks sp193)\n/n"
+    "Credits:\n"
+    "fDave: Cyclone 68000 core,\n"
+    "      base code of PicoDrive\n"
+    "Reesy & FluBBa: DrZ80 core\n"
+    "MAME devs: YM2612 and SN76496 cores\n"
+    "rlyeh and others: minimal SDK\n"
+    "Squidge: mmuhack\n"
+    "Dzz: ARM940 sample\n"
+    "\n"
+    "Special thanks (for docs, ideas):\n"
+    " Charles MacDonald, Haze,\n"
+    " Stephane Dallongeville,\n"
+    " Lordus, Exophase, Rokas,\n"
+    " Nemesis, Tasco Deluxe";
 }
