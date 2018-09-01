@@ -20,7 +20,6 @@
 
 #define DEFAULT_PATH    "mass:"    //Only paths residing on "basic" devices (devices that don't require mounting) can be specified here, since this system doesn't perform mounting based on the path.
 
-static GSTEXTURE BackgroundTexture;
 GSTEXTURE FrameBufferTexture;
 
 extern unsigned char POWEROFF_irx_start[];
@@ -58,21 +57,7 @@ extern unsigned int USBHDFSD_irx_size;
 
 static unsigned char HDDModulesLoaded=0;
 
-unsigned short int ps2_screen_draw_width, ps2_screen_draw_height, ps2_screen_draw_startX, ps2_screen_draw_startY;
-
-static unsigned short int HsyncsPerMsec;
 static int VBlankStartSema;
-
-enum PS2_DISPLAY_MODE{
-    PS2_DISPLAY_MODE_AUTO,
-    PS2_DISPLAY_MODE_NTSC,
-    PS2_DISPLAY_MODE_PAL,
-    PS2_DISPLAY_MODE_480P,
-    PS2_DISPLAY_MODE_NTSC_NI,
-    PS2_DISPLAY_MODE_PAL_NI,
-    
-    PS2_DISPLAY_MODE_COUNT
-};
 
 enum BootDeviceIDs{
     BOOT_DEVICE_UNKNOWN = -1,
@@ -84,14 +69,6 @@ enum BootDeviceIDs{
     BOOT_DEVICE_HOST,
     
     BOOT_DEVICE_COUNT,
-};
-
-struct DisplayMode{
-    unsigned char interlace, mode, ffmd;
-    unsigned char HsyncsPerMsec;
-    unsigned short int width, height;
-    unsigned short int VisibleWidth, VisibleHeight;
-    unsigned short int StartX, StartY;
 };
 
 //Methods
@@ -180,7 +157,7 @@ void SetPWDOnPFS(const char *FullCWD_path){
 }
 
 unsigned int mSec2HSyncTicks(unsigned int msec){
-    return msec*HsyncsPerMsec;
+    return msec*currentDisplayMode->HsyncsPerMsec;
 }
 
 void ThreadWakeupCB(s32 alarm_id, u16 time, void *arg2){
@@ -270,45 +247,6 @@ void ps2_ClearFrameBuffer(void){
     gsKit_vram_clear(gsGlobal);
 }
 
-void ps2_SetDisplayMode(int mode){
-    struct DisplayMode modes[PS2_DISPLAY_MODE_COUNT]={
-        {GS_INTERLACED, 0, GS_FIELD, 16, 640, 448, 640, 448, 0, 0},
-        {GS_INTERLACED, GS_MODE_NTSC, GS_FIELD, 16, 640, 448, 640, 448, 0, 0},        //HSYNCs per millisecond: 15734Hz/1000=15.734
-        {GS_INTERLACED, GS_MODE_PAL, GS_FIELD, 16, 640, 512, 640, 480, 0, 16},        //HSYNCs per millisecond: 15625Hz/1000=15.625
-        {GS_NONINTERLACED, GS_MODE_DTV_480P, GS_FRAME, 31, 720, 480, 640, 448, 40, 16},    //HSYNCs per millisecond: 31469Hz/1000=31.469
-        {GS_NONINTERLACED, GS_MODE_NTSC, GS_FIELD, 16, 640, 224, 640, 224, 0, 0},    //HSYNCs per millisecond: 15734Hz/1000=15.734
-        {GS_NONINTERLACED, GS_MODE_PAL, GS_FIELD, 16, 640, 256, 640, 240, 0, 16},    //HSYNCs per millisecond: 15625Hz/1000=15.625
-    };
-    
-    if(mode!=PS2_DISPLAY_MODE_AUTO){
-        gsGlobal->Interlace=modes[mode].interlace;
-        gsGlobal->Mode=modes[mode].mode;
-        gsGlobal->Field=modes[mode].ffmd;
-        gsGlobal->Width=modes[mode].width;
-        gsGlobal->Height=modes[mode].height;
-    }
-    else{
-        mode=gsGlobal->Mode==GS_MODE_PAL?PS2_DISPLAY_MODE_PAL:PS2_DISPLAY_MODE_NTSC;
-    }
-    
-    ps2_screen_draw_width=modes[mode].VisibleWidth;
-    ps2_screen_draw_height=modes[mode].VisibleHeight;
-    HsyncsPerMsec=modes[mode].HsyncsPerMsec;
-    ps2_screen_draw_startX=modes[mode].StartX;
-    ps2_screen_draw_startY=modes[mode].StartY;
-    
-    gsKit_init_screen(gsGlobal);    /* Apply settings. */
-    gsKit_mode_switch(gsGlobal, GS_ONESHOT);
-    
-    //gsKit doesn't set the TEXA register for expanding the alpha value of 16-bit textures, so we have to set it up here.
-    u64 *p_data;
-    p_data = gsKit_heap_alloc(gsGlobal, 1 ,16, GIF_AD);
-    *p_data++ = GIF_TAG_AD(1);
-    *p_data++ = GIF_AD;
-    *p_data++ = GS_SETREG_TEXA(0x80, 0, 0x00);    // When alpha = 0, use 0x80. If 1, use 0x00.
-    *p_data++ = GS_TEXA;
-}
-
 // clears whole screen.
 void ps2_ClearScreen(void)
 {
@@ -317,9 +255,9 @@ void ps2_ClearScreen(void)
 
 void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2)
 {
-    gsKit_prim_sprite_texture(gsGlobal, &FrameBufferTexture, ps2_screen_draw_startX, ps2_screen_draw_startY,
+    gsKit_prim_sprite_texture(gsGlobal, &FrameBufferTexture, currentDisplayMode->StartX, currentDisplayMode->StartY,
                                                         u1, v1,
-                                                        ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height,
+                                                        currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight,
                                                         u2, v2,
                                                         1, GS_GREY);
 }
@@ -415,16 +353,16 @@ void plat_video_menu_enter(int is_rom_loaded)
     
     FrameBufferTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM), GSKIT_ALLOC_USERBUFFER);
     
-    BackgroundTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(BackgroundTexture.Width, BackgroundTexture.Height, BackgroundTexture.PSM), GSKIT_ALLOC_USERBUFFER);
+    backgroundTexture->Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(backgroundTexture->Width, backgroundTexture->Height, backgroundTexture->PSM), GSKIT_ALLOC_USERBUFFER);
     
-    ps2_SyncTextureChache(&BackgroundTexture);
+    ps2_SyncTextureChache(backgroundTexture);
 }
 
 void plat_video_menu_begin(void)
 {
     ps2_ClearScreen();
     clearGSGlobal();
-    gsKit_prim_sprite_texture(gsGlobal, &BackgroundTexture, ps2_screen_draw_startX, ps2_screen_draw_startY, 0, 0, ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height, BackgroundTexture.Width, BackgroundTexture.Height, 0, GS_GREY);
+    gsKit_prim_sprite_texture(gsGlobal, backgroundTexture, currentDisplayMode->StartX, currentDisplayMode->StartY, 0, 0, currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight, backgroundTexture->Width, backgroundTexture->Height, 0, GS_GREY);
 }
 
 void plat_video_menu_end(void)
@@ -469,15 +407,7 @@ void plat_early_init(void)
     dmaKit_chan_init(DMA_CHANNEL_GIF);
 
     /* Initilize the GS */
-    if(gsGlobal!=NULL) gsKit_deinit_global(gsGlobal);
-    gsGlobal=gsKit_init_global();
-
-    gsGlobal->DoubleBuffering = GS_SETTING_OFF;    /* Disable double buffering to get rid of the "Out of VRAM" error */
-    gsGlobal->PrimAlphaEnable = GS_SETTING_ON;    /* Enable alpha blending for primitives. */
-    gsGlobal->ZBuffering = GS_SETTING_OFF;
-    gsGlobal->PSM=GS_PSM_CT16;
-    
-    ps2_SetDisplayMode(PS2_DISPLAY_MODE_AUTO);
+    initGSGlobal();
 }
 
 void plat_init(void)
@@ -498,10 +428,8 @@ void plat_init(void)
     fileXioInit();
     audsrv_init();
     
-    memset(&FrameBufferTexture, 0, sizeof(FrameBufferTexture));
-    
-    prepare_texture(&BackgroundTexture, 1);
-    g_menubg_ptr = BackgroundTexture.Mem;
+    initBackgroundTexture();
+    g_menubg_ptr = backgroundTexture->Mem; // this pointer is used in the common classes
     
     //Mount the HDD partition, if required.
     if(BootDeviceID==BOOT_DEVICE_HDD){
