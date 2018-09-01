@@ -9,6 +9,7 @@
 #include <gsInline.h>
 
 #include "plat_ps2.h"
+#include "ps2_textures.h"
 #include "version.h"
 
 #include "../common/plat.h"
@@ -19,7 +20,6 @@
 
 #define DEFAULT_PATH    "mass:"    //Only paths residing on "basic" devices (devices that don't require mounting) can be specified here, since this system doesn't perform mounting based on the path.
 
-GSGLOBAL *gsGlobal = NULL;
 static GSTEXTURE BackgroundTexture;
 GSTEXTURE FrameBufferTexture;
 
@@ -244,6 +244,16 @@ void ps2_texture_deinit(void *texture_ptr)
     }
 }
 
+size_t gskitTextureSize(GSTEXTURE *texture)
+{
+    return gsKit_texture_size_ee(texture->Width, texture->Height, texture->PSM);
+}
+
+void *gskitMemAlloc(GSTEXTURE *texture)
+{
+    return memalign(128, gskitTextureSize(texture));
+}
+
 void  prepare_texture(GSTEXTURE *texture, int delayed)
 {
     texture->Width=SCREEN_WIDTH;
@@ -253,7 +263,7 @@ void  prepare_texture(GSTEXTURE *texture, int delayed)
         texture->Delayed=GS_SETTING_ON;
     }
     texture->Filter=GS_FILTER_NEAREST;
-    texture->Mem=memalign(128, gsKit_texture_size_ee(texture->Width, texture->Height, texture->PSM));
+    texture->Mem=gskitMemAlloc(texture);
     gsKit_setup_tbw(texture);
 }
 
@@ -328,7 +338,7 @@ static inline void InitGS(void){
 // clears whole screen.
 void ps2_ClearScreen(void)
 {
-    memset(g_screen_ptr, 0, gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM));
+    memset(g_screen_ptr, 0, gskitTextureSize(&FrameBufferTexture));
 }
 
 void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2)
@@ -337,12 +347,12 @@ void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2)
                                                         u1, v1,
                                                         ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height,
                                                         u2, v2,
-                                                        1, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+                                                        1, GS_GREY);
 }
 
 void ps2_SyncTextureChache(GSTEXTURE *texture)
 {
-    SyncDCache(texture->Mem, (void*)((unsigned int)texture->Mem+gsKit_texture_size_ee(texture->Width, texture->Height, texture->PSM)));
+    SyncDCache(texture->Mem, (void*)((unsigned int)texture->Mem+gskitTextureSize(texture)));
     gsKit_texture_send_inline(gsGlobal, texture->Mem, texture->Width, texture->Height, texture->Vram, texture->PSM, texture->TBW, GS_CLUT_NONE);
 }
 
@@ -440,7 +450,7 @@ void plat_video_menu_begin(void)
 {
     ps2_ClearScreen();
     gsKit_clear(gsGlobal, GS_BLACK);
-    gsKit_prim_sprite_texture(gsGlobal, &BackgroundTexture, ps2_screen_draw_startX, ps2_screen_draw_startY, 0, 0, ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height, BackgroundTexture.Width, BackgroundTexture.Height, 0, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+    gsKit_prim_sprite_texture(gsGlobal, &BackgroundTexture, ps2_screen_draw_startX, ps2_screen_draw_startY, 0, 0, ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height, BackgroundTexture.Width, BackgroundTexture.Height, 0, GS_GREY);
 }
 
 void plat_video_menu_end(void)
@@ -573,17 +583,11 @@ void plat_wait_till_us(unsigned int us_to)
     }
 }
 
-void plat_video_flip(void)
-{
-}
+void plat_video_flip(void) {}
 
-void plat_video_wait_vsync(void)
-{
-}
+void plat_video_wait_vsync(void) {}
 
-void plat_status_msg_clear(void)
-{
-}
+void plat_status_msg_clear(void) {}
 
 void plat_status_msg_busy_next(const char *msg)
 {
@@ -602,9 +606,7 @@ void plat_status_msg_busy_first(const char *msg)
     plat_status_msg_busy_next(msg);
 }
 
-void plat_update_volume(int has_changed, int is_up)
-{
-}
+void plat_update_volume(int has_changed, int is_up) {}
 
 void plat_debug_cat(char *str)
 {

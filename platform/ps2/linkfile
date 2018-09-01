@@ -7,14 +7,13 @@
 # Licenced under Academic Free License version 2.0
 # Review ps2sdk README & LICENSE files for further details.
 #
-# $Id$
 # Linkfile script for ee-ld
 */
 
 ENTRY(_start);
 
 SECTIONS {
-	.text 0x00200000: {
+	.text 0x00100000: {
 		_ftext = . ;
 		*(.text)
 		*(.text.*)

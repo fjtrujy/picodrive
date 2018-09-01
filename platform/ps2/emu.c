@@ -9,7 +9,8 @@
 #include <audsrv.h>
 
 #include "mp3.h"
-#include "asm_utils.h"
+#include "ps2_textures.h"
+#include "utils/asm.h"
 #include "../common/plat.h"
 #include "../common/menu.h"
 #include "../common/emu.h"
@@ -31,7 +32,6 @@
 extern GSTEXTURE FrameBufferTexture;
 unsigned char *PicoDraw2FB;
 
-extern GSGLOBAL *gsGlobal;
 extern void *_gp;
 
 static unsigned short int FrameBufferTextureVisibleWidth, FrameBufferTextureVisibleHeight;

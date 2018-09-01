@@ -3,7 +3,8 @@
 
 #include <gsKit.h>
 
-#define GS_BLACK GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00)
+#define GS_BLACK GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00) // turn black GS Screen
+#define GS_GREY GS_SETREG_RGBAQ(0x80,0x80,0x80,0x80,0x00) // turn grey GS Screen
 
 //Thread priorities (lower = higher priority)
 #define MAIN_THREAD_PRIORITY    0x51
@@ -18,7 +19,5 @@ void ps2_ClearScreen(void);
 void DelayThread(unsigned short int msec);
 void FlipFBNoSync(void);
 void SyncFlipFB(void);
-
-#define ALLOW_16B_RENDERER_USE    1    //Uncomment to allow users to select the 16-bit accurate renderer. It has no real purpose (Other than for taking screencaps), since it's slower than the 8-bit renderers.
 
 #endif
