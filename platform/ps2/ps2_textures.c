@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <kernel.h>
 
+#include "../common/menu.h"
 
 #include "ps2_textures.h"
 #include "port_config.h"
@@ -33,7 +34,12 @@ DISPLAYMODE *currentDisplayMode = NULL;
 
 // PRIVATE METHODS
 
-void prepareTexture(GSTEXTURE *texture, int delayed)
+static u32 textureSize(GSTEXTURE *texture)
+{
+    return gsKit_texture_size(texture->Width, texture->Height, texture->PSM);
+}
+
+static void prepareTexture(GSTEXTURE *texture, int delayed)
 {
     texture->Width=SCREEN_WIDTH;
     texture->Height=SCREEN_HEIGHT;
@@ -46,7 +52,7 @@ void prepareTexture(GSTEXTURE *texture, int delayed)
     gsKit_setup_tbw(texture);
 }
 
-void ps2SetDisplayMode(int mode){
+static void setDisplayMode(int mode){
     struct displayMode modes[PS2_DISPLAY_MODE_COUNT]={
         {GS_INTERLACED, 0, GS_FIELD, 16, 640, 448, 640, 448, 0, 0},
         {GS_INTERLACED, GS_MODE_NTSC, GS_FIELD, 16, 640, 448, 640, 448, 0, 0},        //HSYNCs per millisecond: 15734Hz/1000=15.734
@@ -86,6 +92,12 @@ void ps2SetDisplayMode(int mode){
     *p_data++ = GS_TEXA;
 }
 
+static void syncTextureChache(GSTEXTURE *texture)
+{
+    SyncDCache(texture->Mem, (void*)((unsigned int)texture->Mem+textureSize(texture)));
+    gsKit_texture_send_inline(gsGlobal, texture->Mem, texture->Width, texture->Height, texture->Vram, texture->PSM, texture->TBW, GS_CLUT_NONE);
+}
+
 // PUBLIC METHODS
 
 void initGSGlobal(void)
@@ -107,13 +119,15 @@ void initGSGlobal(void)
     gsGlobal->ZBuffering = GS_SETTING_OFF;
     gsGlobal->PSM=GS_PSM_CT16;
 
-    ps2SetDisplayMode(PS2_DISPLAY_MODE_AUTO);
+    setDisplayMode(PS2_DISPLAY_MODE_AUTO);
 }
 
 void initBackgroundTexture(void)
 {
     backgroundTexture = malloc(sizeof *backgroundTexture);
     prepareTexture(backgroundTexture, 1);
+
+    g_menubg_ptr = backgroundTexture->Mem; // this pointer is used in the common classes
 }
 
 // void initFrameBufferTexture(void)
@@ -126,5 +140,17 @@ void clearGSGlobal(void)
 {
     gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00));
     // gsKit_clear(gsGlobal, GS_BLACK);
+}
+
+void clearBackgroundTexture(void)
+{
+    gsKit_prim_sprite_texture(gsGlobal, backgroundTexture, currentDisplayMode->StartX, currentDisplayMode->StartY, 0, 0, currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight, backgroundTexture->Width, backgroundTexture->Height, 0, GS_SETREG_RGBAQ(0x80,0x80,0x80,0x80,0x00));
+}
+
+void syncBackgroundChache(void)
+{
+    // We need to create the VRAM just in this state I dont know why...
+    backgroundTexture->Vram=gsKit_vram_alloc(gsGlobal, textureSize(backgroundTexture) , GSKIT_ALLOC_USERBUFFER);
+    syncTextureChache(backgroundTexture);
 }
     

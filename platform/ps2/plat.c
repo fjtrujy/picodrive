@@ -13,7 +13,6 @@
 #include "version.h"
 
 #include "../common/plat.h"
-#include "../common/menu.h"
 #include "../common/emu.h"
 
 //Variables, Macros, Enums and Structs
@@ -353,16 +352,14 @@ void plat_video_menu_enter(int is_rom_loaded)
     
     FrameBufferTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM), GSKIT_ALLOC_USERBUFFER);
     
-    backgroundTexture->Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(backgroundTexture->Width, backgroundTexture->Height, backgroundTexture->PSM), GSKIT_ALLOC_USERBUFFER);
-    
-    ps2_SyncTextureChache(backgroundTexture);
+    syncBackgroundChache();
 }
 
 void plat_video_menu_begin(void)
 {
     ps2_ClearScreen();
     clearGSGlobal();
-    gsKit_prim_sprite_texture(gsGlobal, backgroundTexture, currentDisplayMode->StartX, currentDisplayMode->StartY, 0, 0, currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight, backgroundTexture->Width, backgroundTexture->Height, 0, GS_GREY);
+    clearBackgroundTexture();
 }
 
 void plat_video_menu_end(void)
@@ -429,7 +426,6 @@ void plat_init(void)
     audsrv_init();
     
     initBackgroundTexture();
-    g_menubg_ptr = backgroundTexture->Mem; // this pointer is used in the common classes
     
     //Mount the HDD partition, if required.
     if(BootDeviceID==BOOT_DEVICE_HDD){

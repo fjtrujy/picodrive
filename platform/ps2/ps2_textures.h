@@ -23,6 +23,10 @@ extern DISPLAYMODE *currentDisplayMode;
 void initGSGlobal(void);
 void initBackgroundTexture(void);
 // void initFrameBufferTexture(void);
+
 void clearGSGlobal(void);
+void clearBackgroundTexture(void);
+
+void syncBackgroundChache(void);
 
 #endif //PS2_TEXTURES_H
