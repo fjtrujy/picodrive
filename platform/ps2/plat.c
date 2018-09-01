@@ -96,13 +96,6 @@ struct DisplayMode{
 
 //Methods
 
-static inline u32 lzw(u32 val)
-{
-    u32 res;
-    __asm__ __volatile__ ("   plzcw   %0, %1    " : "=r" (res) : "r" (val));
-    return(res);
-}
-
 static int VBlankStartHandler(int cause){
     ee_sema_t sema;
     iReferSemaStatus(VBlankStartSema, &sema);
@@ -110,7 +103,7 @@ static int VBlankStartHandler(int cause){
     return 0;
 }
 
-static inline void LoadIOPModules(void){
+void LoadIOPModules(void){
     SifExecModuleBuffer(IOMANX_irx_start, IOMANX_irx_size, 0, NULL, NULL);
     SifExecModuleBuffer(FILEXIO_irx_start, FILEXIO_irx_size, 0, NULL, NULL);
     
@@ -140,7 +133,7 @@ void ps2_loadHDDModules(void){
     }
 }
 
-static const char *GetMountParams(const char *command, char *BlockDevice){
+const char *GetMountParams(const char *command, char *BlockDevice){
     const char *MountPath;
     int BlockDeviceNameLen;
     
@@ -156,7 +149,7 @@ static const char *GetMountParams(const char *command, char *BlockDevice){
     return MountPath;
 }
 
-static void SetPWDOnPFS(const char *FullCWD_path){
+void SetPWDOnPFS(const char *FullCWD_path){
     int i;
     char *path;
     
@@ -186,11 +179,11 @@ static void SetPWDOnPFS(const char *FullCWD_path){
     }
 }
 
-static inline unsigned int mSec2HSyncTicks(unsigned int msec){
+unsigned int mSec2HSyncTicks(unsigned int msec){
     return msec*HsyncsPerMsec;
 }
 
-static void ThreadWakeupCB(s32 alarm_id, u16 time, void *arg2){
+void ThreadWakeupCB(s32 alarm_id, u16 time, void *arg2){
     iWakeupThread(*(int*)arg2);
 }
 
@@ -205,7 +198,7 @@ void DelayThread(unsigned short int msec){
 }
 
 //HACK! If booting from a USB device, keep trying to open this program again until it succeeds. This will ensure that the emulator will be able to load its files.
-static void WaitUntilDeviceIsReady(const char *path){
+void WaitUntilDeviceIsReady(const char *path){
     FILE *file;
 
     while((file=fopen(path, "rb"))==NULL){
@@ -254,7 +247,7 @@ void *gskitMemAlloc(GSTEXTURE *texture)
     return memalign(128, gskitTextureSize(texture));
 }
 
-void  prepare_texture(GSTEXTURE *texture, int delayed)
+void prepare_texture(GSTEXTURE *texture, int delayed)
 {
     texture->Width=SCREEN_WIDTH;
     texture->Height=SCREEN_HEIGHT;
@@ -287,15 +280,6 @@ void ps2_SetDisplayMode(int mode){
         {GS_NONINTERLACED, GS_MODE_PAL, GS_FIELD, 16, 640, 256, 640, 240, 0, 16},    //HSYNCs per millisecond: 15625Hz/1000=15.625
     };
     
-    /* Initilize the GS */
-    if(gsGlobal!=NULL) gsKit_deinit_global(gsGlobal);
-    gsGlobal=gsKit_init_global();
-    
-    gsGlobal->DoubleBuffering = GS_SETTING_OFF;    /* Disable double buffering to get rid of the "Out of VRAM" error */
-    gsGlobal->PrimAlphaEnable = GS_SETTING_ON;    /* Enable alpha blending for primitives. */
-    gsGlobal->ZBuffering = GS_SETTING_OFF;
-    gsGlobal->PSM=GS_PSM_CT16;
-    
     if(mode!=PS2_DISPLAY_MODE_AUTO){
         gsGlobal->Interlace=modes[mode].interlace;
         gsGlobal->Mode=modes[mode].mode;
@@ -325,16 +309,6 @@ void ps2_SetDisplayMode(int mode){
     *p_data++ = GS_TEXA;
 }
 
-static inline void InitGS(void){
-    /* Initilize DMAKit */
-    dmaKit_init(D_CTRL_RELE_OFF,D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
-    
-    /* Initialize the DMAC */
-    dmaKit_chan_init(DMA_CHANNEL_GIF);
-    
-    ps2_SetDisplayMode(PS2_DISPLAY_MODE_AUTO);
-}
-
 // clears whole screen.
 void ps2_ClearScreen(void)
 {
@@ -356,7 +330,7 @@ void ps2_SyncTextureChache(GSTEXTURE *texture)
     gsKit_texture_send_inline(gsGlobal, texture->Mem, texture->Width, texture->Height, texture->Vram, texture->PSM, texture->TBW, GS_CLUT_NONE);
 }
 
-static void ps2_redrawFrameBufferTexture(void){
+void ps2_redrawFrameBufferTexture(void){
     ps2_SyncTextureChache(&FrameBufferTexture);
     ps2_DrawFrameBuffer(0, 0, FrameBufferTexture.Width, FrameBufferTexture.Height);
 }
@@ -485,6 +459,25 @@ void plat_early_init(void)
     EnableIntc(kINTC_VBLANK_START);
 
     while(!SifIopSync()){};
+
+    // We need to Init the GS as soon as possible
+    // InitGS();
+    /* Initilize DMAKit */
+    dmaKit_init(D_CTRL_RELE_OFF,D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
+    
+    /* Initialize the DMAC */
+    dmaKit_chan_init(DMA_CHANNEL_GIF);
+
+    /* Initilize the GS */
+    if(gsGlobal!=NULL) gsKit_deinit_global(gsGlobal);
+    gsGlobal=gsKit_init_global();
+
+    gsGlobal->DoubleBuffering = GS_SETTING_OFF;    /* Disable double buffering to get rid of the "Out of VRAM" error */
+    gsGlobal->PrimAlphaEnable = GS_SETTING_ON;    /* Enable alpha blending for primitives. */
+    gsGlobal->ZBuffering = GS_SETTING_OFF;
+    gsGlobal->PSM=GS_PSM_CT16;
+    
+    ps2_SetDisplayMode(PS2_DISPLAY_MODE_AUTO);
 }
 
 void plat_init(void)
@@ -505,7 +498,6 @@ void plat_init(void)
     fileXioInit();
     audsrv_init();
     
-    InitGS();
     memset(&FrameBufferTexture, 0, sizeof(FrameBufferTexture));
     
     prepare_texture(&BackgroundTexture, 1);

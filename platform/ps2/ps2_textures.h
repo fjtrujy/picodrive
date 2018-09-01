@@ -7,5 +7,9 @@
 
 extern GSGLOBAL *gsGlobal;
 
+// GSGLOBAL *currentGSGlobal(void);
+
+void initGSGlobal(void);
+// void clearGSGlobal(void);
 
 #endif //PS2_TEXTURES_H
