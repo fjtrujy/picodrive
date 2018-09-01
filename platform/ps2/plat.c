@@ -258,7 +258,7 @@ void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2)
                                                         u1, v1,
                                                         currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight,
                                                         u2, v2,
-                                                        1, GS_GREY);
+                                                        PS2_TEXTURES_Z_POSITION_BUFFER, GS_GREY);
 }
 
 void ps2_SyncTextureChache(GSTEXTURE *texture)

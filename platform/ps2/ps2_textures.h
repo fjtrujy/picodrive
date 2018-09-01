@@ -6,14 +6,7 @@
 #include <gsKit.h>
 #include <gsInline.h>
 
-struct displayMode{
-    unsigned char interlace, mode, ffmd;
-    unsigned char HsyncsPerMsec;
-    unsigned short int width, height;
-    unsigned short int VisibleWidth, VisibleHeight;
-    unsigned short int StartX, StartY;
-};
-typedef struct displayMode DISPLAYMODE;
+#include "plat_ps2.h"
 
 extern GSGLOBAL *gsGlobal;
 extern GSTEXTURE *backgroundTexture;

@@ -9,21 +9,7 @@
 #include "ps2_textures.h"
 #include "port_config.h"
 
-// Utils Macros
-// #define GS_BLACK GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00) // turn black GS Screen
-
 // PRIVATE VARIABLES
-
-enum PS2_DISPLAY_MODE{
-    PS2_DISPLAY_MODE_AUTO,
-    PS2_DISPLAY_MODE_NTSC,
-    PS2_DISPLAY_MODE_PAL,
-    PS2_DISPLAY_MODE_480P,
-    PS2_DISPLAY_MODE_NTSC_NI,
-    PS2_DISPLAY_MODE_PAL_NI,
-    
-    PS2_DISPLAY_MODE_COUNT
-};
 
 // PUBLIC VARIABLES
 
@@ -138,13 +124,12 @@ void initBackgroundTexture(void)
 
 void clearGSGlobal(void)
 {
-    gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00));
-    // gsKit_clear(gsGlobal, GS_BLACK);
+    gsKit_clear(gsGlobal, GS_BLACK);
 }
 
 void clearBackgroundTexture(void)
 {
-    gsKit_prim_sprite_texture(gsGlobal, backgroundTexture, currentDisplayMode->StartX, currentDisplayMode->StartY, 0, 0, currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight, backgroundTexture->Width, backgroundTexture->Height, 0, GS_SETREG_RGBAQ(0x80,0x80,0x80,0x80,0x00));
+    gsKit_prim_sprite_texture(gsGlobal, backgroundTexture, currentDisplayMode->StartX, currentDisplayMode->StartY, 0, 0, currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight, backgroundTexture->Width, backgroundTexture->Height, PS2_TEXTURES_Z_POSITION_BACKGROUND, GS_GREY);
 }
 
 void syncBackgroundChache(void)
