@@ -212,7 +212,7 @@ static void vidResetMode(void)
 //	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", !(currentConfig.EmuOpt&0x80)?8:16);
     ps2_ClearFrameBuffer();
     
-	gsKit_clear(gsGlobal, GS_BLACK);
+	clearGSGlobal();
 
 	// bilinear filtering for the PSP and PS2.
 	FrameBufferTexture.Filter=(currentConfig.scaling)?GS_FILTER_LINEAR:GS_FILTER_NEAREST;

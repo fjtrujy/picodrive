@@ -9,16 +9,32 @@
 // #include <gsInline.h>
 
 #include "ps2_textures.h"
+#include "port_config.h"
 
 // Utils Macros
 // #define GS_BLACK GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00) // turn black GS Screen
 
 GSGLOBAL *gsGlobal = NULL;
+// GSTEXTURE *backgroundTexture2 = NULL;
+// GSTEXTURE *frameBufferTexture2 = NULL;
 
 // GSGLOBAL *currentGSGlobal(void)
 // {
 //     return gsGlobal;
 // }
+
+void prepareTexture(GSTEXTURE *texture, int delayed)
+{
+    texture->Width=SCREEN_WIDTH;
+    texture->Height=SCREEN_HEIGHT;
+    texture->PSM=GS_PSM_CT16;
+    if (delayed) {
+        texture->Delayed=GS_SETTING_ON;
+    }
+    texture->Filter=GS_FILTER_NEAREST;
+    texture->Mem=memalign(128, gskitTextureSize(texture));
+    gsKit_setup_tbw(texture);
+}
 
 void initGSGlobal(void)
 {
@@ -40,8 +56,21 @@ void initGSGlobal(void)
     gsGlobal->PSM=GS_PSM_CT16;
 }
 
-// void clearGSGlobal(void)
+// void initBackgroundTexture(void)
 // {
-//     gsKit_clear(gsGlobal, GS_BLACK);
+//     backgroundTexture2 = malloc(sizeof *backgroundTexture2);
+//     prepareTexture(backgroundTexture2, 1);
 // }
+
+// void initFrameBufferTexture(void)
+// {
+//     frameBufferTexture2 = malloc(sizeof *frameBufferTexture2);
+//     prepareTexture(frameBufferTexture2, 0);
+// }
+
+void clearGSGlobal(void)
+{
+    gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0x00,0x00,0x00,0x00,0x00));
+    // gsKit_clear(gsGlobal, GS_BLACK);
+}
     

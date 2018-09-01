@@ -423,7 +423,7 @@ void plat_video_menu_enter(int is_rom_loaded)
 void plat_video_menu_begin(void)
 {
     ps2_ClearScreen();
-    gsKit_clear(gsGlobal, GS_BLACK);
+    clearGSGlobal();
     gsKit_prim_sprite_texture(gsGlobal, &BackgroundTexture, ps2_screen_draw_startX, ps2_screen_draw_startY, 0, 0, ps2_screen_draw_startX+ps2_screen_draw_width, ps2_screen_draw_startY+ps2_screen_draw_height, BackgroundTexture.Width, BackgroundTexture.Height, 0, GS_GREY);
 }
 
