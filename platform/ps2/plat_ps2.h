@@ -49,11 +49,4 @@ enum BootDeviceIDs{
     BOOT_DEVICE_COUNT,
 };
 
-/* video */
-void ps2_ClearScreen(void);
-
-/* emu */
-void FlipFBNoSync(void);
-void SyncFlipFB(void);
-
 #endif

@@ -8,8 +8,10 @@
 #include <kernel.h>
 #include <audsrv.h>
 
-#include "mp3.h"
 #include "ps2_textures.h"
+#include "ps2_timing.h"
+#include "ps2_semaphore.h"
+#include "mp3.h"
 #include "utils/asm.h"
 #include "../common/plat.h"
 #include "../common/menu.h"
@@ -29,7 +31,6 @@
 #define OSD_CD_STAT_RED_PAL_EN		0xD0	//OSD CD status red LED palette entry
 
 //Variables for the emulator core to use.
-extern GSTEXTURE FrameBufferTexture;
 unsigned char *PicoDraw2FB;
 
 extern void *_gp;
@@ -37,20 +38,18 @@ extern void *_gp;
 static unsigned short int FrameBufferTextureVisibleWidth, FrameBufferTextureVisibleHeight;
 static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleOffsetY;	//From upper left-hand corner.
 
-static void blit(const char *fps, const char *notice, int lagging_behind);
-
 static void emu_draw(int lagging_behind){
+	lprintf("emu_draw\n");
 	// want vsync?
 	if((currentConfig.EmuOpt & 0x2000) && (!(currentConfig.EmuOpt & 0x10000) || !lagging_behind)){
-		SyncFlipFB();
+		waitSemaphore();
 	}
-	else{
-		FlipFBNoSync();
-	}
+	
+	syncGSGlobalChache();
 }
 
-static void osd_text(int x, const char *text)
-{
+static void osd_text(int x, const char *text) {
+	lprintf("osd_text\n");
 	unsigned short int ScreenHeight;
 	int len = strlen(text) * 8;
 	char h;
@@ -60,7 +59,7 @@ static void osd_text(int x, const char *text)
 		//8-bit mode
 		for (h = 8; h>=0; h--) {
 			unsigned char *screen_8 = g_screen_ptr;
-			memset(&screen_8[x+FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(ScreenHeight-h-1)], OSD_STAT_BLK_PAL_ENT, len);
+			memset(&screen_8[x+FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(ScreenHeight-h-1)], OSD_STAT_BLK_PAL_ENT, len);
 		}
 		emu_text_out8(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
 	}
@@ -70,17 +69,17 @@ static void osd_text(int x, const char *text)
 			int pixel_w;
 			for(pixel_w=0; pixel_w<len; pixel_w++){
 				unsigned short int *screen_16=g_screen_ptr;
-				screen_16[x+pixel_w+FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(ScreenHeight-h-1)]=0x8000;
+				screen_16[x+pixel_w+FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(ScreenHeight-h-1)]=0x8000;
 			}
 		}
 		emu_text_out16(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
 	}
 }
 
-static inline void do_pal_update(void)
-{
+static inline void do_pal_update(void) {
+	lprintf("do_pal_update\n");
 	int i;
-	unsigned short int *pal=(void *)FrameBufferTexture.Clut;
+	unsigned short int *pal=(void *)frameBufferTexture->Clut;
 	//Megadrive palette:	0000BBB0GGG0RRR0
 	//16-bit clut palette:	ABBBBBGGGGGRRRRR
 
@@ -111,43 +110,37 @@ static inline void do_pal_update(void)
 	Pico.m.dirtyPal = 0;
 }
 
-static void blitscreen_clut(void)
-{
+static void blitscreen_clut(void) {
+	lprintf("blitscreen_clut\n");
 	if(Pico.m.dirtyPal){
 		do_pal_update();
 
-		SyncDCache(FrameBufferTexture.Clut, (void*)((unsigned int)FrameBufferTexture.Clut+256*2));
-		gsKit_texture_send_inline(gsGlobal, FrameBufferTexture.Clut, 16, 16, FrameBufferTexture.VramClut, FrameBufferTexture.ClutPSM, 1, GS_CLUT_PALLETE);	// upload 16*16 entries (256)
+		SyncDCache(frameBufferTexture->Clut, (void*)((unsigned int)frameBufferTexture->Clut+256*2));
+		gsKit_texture_send_inline(gsGlobal, frameBufferTexture->Clut, 16, 16, frameBufferTexture->VramClut, frameBufferTexture->ClutPSM, 1, GS_CLUT_PALLETE);	// upload 16*16 entries (256)
 	}
 }
 
-static int EmuScanSlow8(unsigned int num)
-{
-	DrawLineDest = (unsigned char *)g_screen_ptr + num*FrameBufferTexture.Width;
+static int EmuScanSlow8(unsigned int num) {
+	// lprintf("EmuScanSlow8\n");
+	DrawLineDest = (unsigned char *)g_screen_ptr + num*frameBufferTexture->Width;
 
 	return 0;
 }
 
-static int EmuScanSlow16(unsigned int num)
-{
-	DrawLineDest = (unsigned short int *)g_screen_ptr + num*FrameBufferTexture.Width;
+static int EmuScanSlow16(unsigned int num) {
+	lprintf("EmuScanSlow16\n");
+	DrawLineDest = (unsigned short int *)g_screen_ptr + num*frameBufferTexture->Width;
 
 	return 0;
 }
 
-void spend_cycles(int c)
-{
-    DelayThread(c/295);
+void spend_cycles(int c) {
+	lprintf("spend_cycles\n");
+    delayCycles(c);
 }
 
-void ps2_memcpy_all_buffers(void *data, int offset, int len)
-{
-    char *dst = (char *)data + offset;
-    if (dst != data) memcpy(dst, data, len);
-}
-
-static void cd_leds(void)
-{
+static void cd_leds(void) {
+	lprintf("cd_leds\n");
     unsigned int reg, col_g, col_r;
 
 	reg = Pico_mcd->s68k_regs[0];
@@ -156,25 +149,25 @@ static void cd_leds(void)
 		// 8-bit modes
 		col_g = (reg & 2) ? 0xc0c0c0c0 : 0xe0e0e0e0;
 		col_r = (reg & 1) ? 0xd0d0d0d0 : 0xe0e0e0e0;
-		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+ 4) =
-		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(3+FrameBufferTextureVisibleOffsetY)+ 4) =
-		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(4+FrameBufferTextureVisibleOffsetY)+ 4) = col_g;
-		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+12) =
-		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(3+FrameBufferTextureVisibleOffsetY)+12) =
-		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(4+FrameBufferTextureVisibleOffsetY)+12) = col_r;
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(2+FrameBufferTextureVisibleOffsetY)+ 4) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(3+FrameBufferTextureVisibleOffsetY)+ 4) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(4+FrameBufferTextureVisibleOffsetY)+ 4) = col_g;
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(2+FrameBufferTextureVisibleOffsetY)+12) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(3+FrameBufferTextureVisibleOffsetY)+12) =
+		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(4+FrameBufferTextureVisibleOffsetY)+12) = col_r;
 	} else {
 		// 16-bit modes
-		unsigned int *p = (unsigned int *)((short *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+FrameBufferTexture.Width*(2+FrameBufferTextureVisibleOffsetY)+4);
+		unsigned int *p = (unsigned int *)((short *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(2+FrameBufferTextureVisibleOffsetY)+4);
 		unsigned int col_g = (reg & 2) ? 0x83008300 : 0x80008000;
 		unsigned int col_r = (reg & 1) ? 0x80188018 : 0x80008000;
-		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += FrameBufferTexture.Width/2 - 12/2;
-		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += FrameBufferTexture.Width/2 - 12/2;
+		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += frameBufferTexture->Width/2 - 12/2;
+		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += frameBufferTexture->Width/2 - 12/2;
 		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r;
 	}
 }
 
-static void draw_pico_ptr(void)
-{
+static void draw_pico_ptr(void) {
+	lprintf("draw_pico_ptr\n");
     unsigned char *p = (unsigned char *)g_screen_ptr;
     
     // only if pen enabled and for 8bit mode
@@ -187,8 +180,8 @@ static void draw_pico_ptr(void)
     p[1023] = 0xe0; p[1024] = 0xf0; p[1025] = 0xe0;
 }
 
-static void blit(const char *fps, const char *notice, int lagging_behind)
-{
+static void blit(const char *fps, const char *notice, int lagging_behind) {
+	lprintf("blit\n");
 	if (notice)      osd_text(4, notice);
 	if (currentConfig.EmuOpt & 2) osd_text(OSD_FPS_X, fps);
 
@@ -199,31 +192,30 @@ static void blit(const char *fps, const char *notice, int lagging_behind)
 
 	if(!(currentConfig.EmuOpt&0x80)) blitscreen_clut();
 
-	SyncDCache(FrameBufferTexture.Mem, (void*)((unsigned int)FrameBufferTexture.Mem+gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM)));
-	gsKit_texture_send_inline(gsGlobal, FrameBufferTexture.Mem, FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.Vram, FrameBufferTexture.PSM, FrameBufferTexture.TBW, GS_CLUT_TEXTURE); //Use GS_CLUT_TEXTURE for PSM_T8.
-	ps2_DrawFrameBuffer(FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleOffsetY, FrameBufferTextureVisibleWidth+FrameBufferTextureVisibleOffsetX, FrameBufferTextureVisibleHeight+FrameBufferTextureVisibleOffsetY);
+	SyncDCache(frameBufferTexture->Mem, (void*)((unsigned int)frameBufferTexture->Mem+gsKit_texture_size_ee(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM)));
+	gsKit_texture_send_inline(gsGlobal, frameBufferTexture->Mem, frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->Vram, frameBufferTexture->PSM, frameBufferTexture->TBW, GS_CLUT_TEXTURE); //Use GS_CLUT_TEXTURE for PSM_T8.
+	clearFrameBufferTexture();
 
 	emu_draw(lagging_behind);
 }
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
-static void vidResetMode(void)
-{
-//	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", !(currentConfig.EmuOpt&0x80)?8:16);
-    ps2_ClearFrameBuffer();
+static void vidResetMode(void) {
+	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", !(currentConfig.EmuOpt&0x80)?8:16);
+    deinitFrameBufferTexture();
     
 	clearGSGlobal();
 
 	// bilinear filtering for the PSP and PS2.
-	FrameBufferTexture.Filter=(currentConfig.scaling)?GS_FILTER_LINEAR:GS_FILTER_NEAREST;
+	frameBufferTexture->Filter=(currentConfig.scaling)?GS_FILTER_LINEAR:GS_FILTER_NEAREST;
 
 	if(!(PicoOpt&0x10)){	//Accurate (line) renderer.
 		FrameBufferTextureVisibleOffsetX=0;	//Nothing to hide here.
 		FrameBufferTextureVisibleOffsetY=0;
-		FrameBufferTexture.Width=SCREEN_WIDTH;
-		FrameBufferTexture.Height=(!(Pico.video.reg[1]&8))?224:240;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
-		FrameBufferTextureVisibleWidth=FrameBufferTexture.Width;
-		FrameBufferTextureVisibleHeight=FrameBufferTexture.Height;
+		frameBufferTexture->Width=SCREEN_WIDTH;
+		frameBufferTexture->Height=(!(Pico.video.reg[1]&8))?224:240;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
+		FrameBufferTextureVisibleWidth=frameBufferTexture->Width;
+		FrameBufferTextureVisibleHeight=frameBufferTexture->Height;
 
 		if(!(currentConfig.EmuOpt&0x80)){
 			//8-bit mode
@@ -231,8 +223,8 @@ static void vidResetMode(void)
 			PicoScanBegin = &EmuScanSlow8;
 			PicoScanEnd = NULL;
 
-			FrameBufferTexture.PSM=GS_PSM_T8;
-			FrameBufferTexture.ClutPSM=GS_PSM_CT16;
+			frameBufferTexture->PSM=GS_PSM_T8;
+			frameBufferTexture->ClutPSM=GS_PSM_CT16;
 		}
 		else{
 			//16-bit mode
@@ -240,7 +232,7 @@ static void vidResetMode(void)
 			PicoScanBegin = &EmuScanSlow16;
 			PicoScanEnd = NULL;
 
-			FrameBufferTexture.PSM=GS_PSM_CT16;
+			frameBufferTexture->PSM=GS_PSM_CT16;
 			//No CLUT.
 		}
 	}
@@ -257,41 +249,41 @@ static void vidResetMode(void)
 			FrameBufferTextureVisibleHeight=240;
 		}
 
-		FrameBufferTexture.Width=328;
-		FrameBufferTexture.Height=240;
+		frameBufferTexture->Width=328;
+		frameBufferTexture->Height=240;
 		FrameBufferTextureVisibleWidth=320;
 
-		FrameBufferTexture.PSM=GS_PSM_T8;
-		FrameBufferTexture.ClutPSM=GS_PSM_CT16;
+		frameBufferTexture->PSM=GS_PSM_T8;
+		frameBufferTexture->ClutPSM=GS_PSM_CT16;
 	}
 
 	if(!(currentConfig.EmuOpt&0x80)){
 		//8-bit mode
-		FrameBufferTexture.Clut=memalign(128, gsKit_texture_size_ee(16, 16, FrameBufferTexture.ClutPSM));
-		FrameBufferTexture.VramClut=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(16, 16, FrameBufferTexture.ClutPSM), GSKIT_ALLOC_USERBUFFER);
+		frameBufferTexture->Clut=memalign(128, gsKit_texture_size_ee(16, 16, frameBufferTexture->ClutPSM));
+		frameBufferTexture->VramClut=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(16, 16, frameBufferTexture->ClutPSM), GSKIT_ALLOC_USERBUFFER);
 	}
 	else{
 		//16-bit mode (No CLUT).
-		FrameBufferTexture.Clut=NULL;
+		frameBufferTexture->Clut=NULL;
 	}
 
-	gsKit_setup_tbw(&FrameBufferTexture);
-	FrameBufferTexture.Mem=memalign(128, gsKit_texture_size_ee(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM));
-	FrameBufferTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM), GSKIT_ALLOC_USERBUFFER);
-	DrawLineDest=PicoDraw2FB=g_screen_ptr=(void*)((unsigned int)FrameBufferTexture.Mem);
+	gsKit_setup_tbw(frameBufferTexture);
+	frameBufferTexture->Mem=memalign(128, gsKit_texture_size_ee(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM));
+	frameBufferTexture->Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM), GSKIT_ALLOC_USERBUFFER);
+	DrawLineDest=PicoDraw2FB=g_screen_ptr=(void*)((unsigned int)frameBufferTexture->Mem);
 
-	ps2_ClearScreen();
+	resetFrameBufferTexture();
 
 	Pico.m.dirtyPal = 1;	//Since the VRAM for the CLUT has been reallocated, reupload it.
 }
 
-void emu_video_mode_change(int start_line, int line_count, int is_32cols)
-{
-    ps2_ClearScreen();
+void emu_video_mode_change(int start_line, int line_count, int is_32cols){
+    lprintf("emu_video_mode_change\n");
+	resetFrameBufferTexture();
 }
 
-void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu)
-{
+void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
+	lprintf("plat_video_toggle_renderer\n");
     if (force_16bpp) {
         PicoOpt &= ~POPT_ALT_RENDERER;
         currentConfig.EmuOpt |= EOPT_16BPP;
@@ -338,7 +330,8 @@ static unsigned char sound_thread_exit = 0, sound_thread_stop = 0;
 static int sound_thread_id = -1;
 static unsigned char sound_thread_stack[0xA00] ALIGNED(128);
 
-void ps2_SetAudioFormat(unsigned int rate){
+void ps2_SetAudioFormat(unsigned int rate) {
+	lprintf("sound_thread\n");
     struct audsrv_fmt_t AudioFmt;
     
     AudioFmt.bits = 16;
@@ -348,8 +341,8 @@ void ps2_SetAudioFormat(unsigned int rate){
     audsrv_set_volume(MAX_VOLUME);
 }
 
-static void sound_thread(void *args)
-{
+void sound_thread(void *args) {
+	lprintf("sound_thread\n");
 	while (!sound_thread_exit)
 	{
 		if(sound_thread_stop){
@@ -368,7 +361,7 @@ static void sound_thread(void *args)
 
 		audsrv_wait_audio(samples_block*2);
 
-		// lprintf("sthr: got data: %i\n", samples_made - samples_done);
+		lprintf("sthr: got data: %i\n", samples_made - samples_done);
 
 		audsrv_play_audio((void*)snd_playptr, samples_block*2);
 
@@ -388,8 +381,8 @@ static void sound_thread(void *args)
 	lprintf("sthr: exit\n");
 	ExitDeleteThread();
 }
-static void sound_init(void)
-{
+static void sound_init(void) {
+	lprintf("sound_init\n");
 	int ret;
 	ee_thread_t thread;
 
@@ -412,8 +405,8 @@ static void sound_init(void)
 		lprintf("CreateThread failed: %d\n", sound_thread_id);
 }
 
-static void writeSound(int len)
-{
+static void writeSound(int len) {
+	lprintf("writeSound\n");
 	if (PicoOpt&8) len<<=1;
 
 	PsndOut += len;
@@ -429,22 +422,22 @@ static void writeSound(int len)
 
 // All the PEMU Methods
 
-void pemu_prep_defconfig(void)
-{
+void pemu_prep_defconfig(void) {
+	lprintf("pemu_prep_defconfig\n");
     defaultConfig.EmuOpt    = 0x1d | 0x600; // | <- confirm_save, cd_leds, 8-bit acc rend
 }
 
-void pemu_validate_config(void)
-{
+void pemu_validate_config(void) {
+	lprintf("pemu_validate_config\n");
 }
 
-void pemu_finalize_frame(const char *fps, const char *notice_msg)
-{
+void pemu_finalize_frame(const char *fps, const char *notice_msg) {
+	lprintf("pemu_finalize_frame\n");
     blit(fps, notice_msg, 0);
 }
 
-void pemu_sound_start(void)
-{
+void pemu_sound_start(void) {
+	lprintf("pemu_sound_start\n");
     static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
     int stereo;
     
@@ -481,8 +474,8 @@ void pemu_sound_start(void)
     WakeupThread(sound_thread_id);
 }
 
-void pemu_sound_stop(void)
-{
+void pemu_sound_stop(void) {
+	lprintf("pemu_sound_stop\n");
     sound_thread_stop=1;
     if (PsndOut != NULL) {
         PsndOut = NULL;
@@ -491,15 +484,15 @@ void pemu_sound_stop(void)
 }
 
 /* wait until we can write more sound */
-void pemu_sound_wait(void)
-{
+void pemu_sound_wait(void) {
+	lprintf("pemu_sound_wait\n");
     // TODO: test this
     while (!sound_thread_exit && samples_made - samples_done > samples_block * 4)
-        DelayThread(10);
+        delayMS(10);
 }
 
-void pemu_forced_frame(int opts)
-{
+void pemu_forced_frame(int opts) {
+	lprintf("pemu_forced_frame\n");
     int po_old = PicoOpt;
     int eo_old = currentConfig.EmuOpt;
     
@@ -515,18 +508,18 @@ void pemu_forced_frame(int opts)
     currentConfig.EmuOpt = eo_old;
 }
 
-void pemu_loop_prep(void)
-{
+void pemu_loop_prep(void) {
+	lprintf("pemu_loop_prep\n");
     static int mp3_init_done = 0;
     
-    FrameBufferTexture.Width=0;
-    FrameBufferTexture.Height=0;
+    frameBufferTexture->Width=0;
+    frameBufferTexture->Height=0;
     FrameBufferTextureVisibleOffsetX=0;
     FrameBufferTextureVisibleOffsetY=0;
     FrameBufferTextureVisibleWidth=0;
     FrameBufferTextureVisibleHeight=0;
-    FrameBufferTexture.Mem=NULL;
-    FrameBufferTexture.Clut=NULL;
+    frameBufferTexture->Mem=NULL;
+    frameBufferTexture->Clut=NULL;
     PicoDraw2FB=NULL;
 
     sound_init();
@@ -552,8 +545,8 @@ void pemu_loop_prep(void)
     }
 }
 
-void pemu_loop_end(void)
-{
+void pemu_loop_end(void) {
+	lprintf("pemu_loop_end\n");
     pemu_sound_stop();
-    ps2_ClearScreen();
+    resetFrameBufferTexture();
 }

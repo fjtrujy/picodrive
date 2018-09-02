@@ -8,6 +8,7 @@
 
 #include "ps2_textures.h"
 #include "ps2_timing.h"
+#include "ps2_semaphore.h"
 #include "version.h"
 
 #include "../common/plat.h"
@@ -52,16 +53,7 @@ extern unsigned int USBHDFSD_irx_size;
 
 static unsigned char HDDModulesLoaded=0;
 
-static int VBlankStartSema;
-
 //Methods
-
-static int VBlankStartHandler(int cause) {
-    ee_sema_t sema;
-    iReferSemaStatus(VBlankStartSema, &sema);
-    if(sema.count<sema.max_count) iSignalSema(VBlankStartSema);
-    return 0;
-}
 
 void LoadIOPModules(void) {
     SifExecModuleBuffer(IOMANX_irx_start, IOMANX_irx_size, 0, NULL, NULL);
@@ -254,8 +246,7 @@ void plat_video_menu_end(void) {
     syncFrameBufferChache();
     clearFrameBufferTexture();
 
-    PollSema(VBlankStartSema);    //Clear the semaphore to zero if it isn't already at zero, so that WaitSema will wait until the next VBlank start event.
-    WaitSema(VBlankStartSema);
+    waitSemaphore();
     syncGSGlobalChache();
     /*
      FIXME: I don't know whether it's really a bug or not, but draw_menu_video_mode() fails to display text. I believe that it's because the GS is taking a while to receive/draw the uploaded frame buffer, and so the text stays on-screen for barely any time at all.
@@ -268,25 +259,18 @@ void plat_video_menu_end(void) {
 }
 
 void plat_early_init(void) {
-    ee_sema_t sema;
+    /* Initilize the GS */
+    initGSGlobal();
 
     SifInitRpc(0);
 //    while(!SifIopReset(NULL, 0)){}; // Comment this line if you don't wanna debug the output
 
     ChangeThreadPriority(GetThreadId(), MAIN_THREAD_PRIORITY);
 
-    sema.init_count=0;
-    sema.max_count=1;
-    sema.attr=sema.option=0;
-    VBlankStartSema=CreateSema(&sema);
-
-    AddIntcHandler(kINTC_VBLANK_START, &VBlankStartHandler, 0);
-    EnableIntc(kINTC_VBLANK_START);
+    initSemaphore();
 
     while(!SifIopSync()){};
 
-    /* Initilize the GS */
-    initGSGlobal();
 }
 
 void plat_init(void) {
@@ -332,10 +316,7 @@ void plat_init(void) {
 void plat_finish(void) {
     deinitFrameBufferTexture();
     deinitGSGlobal();
-
-    DisableIntc(kINTC_VBLANK_START);
-    RemoveIntcHandler(kINTC_VBLANK_START, 0);
-    DeleteSema(VBlankStartSema);
+    deinitSemaphore();
 
     padPortClose(0, 0);
     padPortClose(1, 0);
