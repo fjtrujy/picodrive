@@ -53,7 +53,6 @@ enum BootDeviceIDs{
 void ps2_ClearScreen(void);
 
 /* emu */
-void DelayThread(unsigned short int msec);
 void FlipFBNoSync(void);
 void SyncFlipFB(void);
 

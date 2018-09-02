@@ -7,6 +7,7 @@
 #include <audsrv.h>
 
 #include "ps2_textures.h"
+#include "ps2_timing.h"
 #include "version.h"
 
 #include "../common/plat.h"
@@ -55,14 +56,14 @@ static int VBlankStartSema;
 
 //Methods
 
-static int VBlankStartHandler(int cause){
+static int VBlankStartHandler(int cause) {
     ee_sema_t sema;
     iReferSemaStatus(VBlankStartSema, &sema);
     if(sema.count<sema.max_count) iSignalSema(VBlankStartSema);
     return 0;
 }
 
-void LoadIOPModules(void){
+void LoadIOPModules(void) {
     SifExecModuleBuffer(IOMANX_irx_start, IOMANX_irx_size, 0, NULL, NULL);
     SifExecModuleBuffer(FILEXIO_irx_start, FILEXIO_irx_size, 0, NULL, NULL);
     
@@ -77,7 +78,7 @@ void LoadIOPModules(void){
     SifExecModuleBuffer(AUDSRV_irx_start, AUDSRV_irx_size, 0, NULL, NULL);
 }
 
-void ps2_loadHDDModules(void){
+void ps2_loadHDDModules(void) {
     /* Try not to adjust this unless you know what you are doing. The tricky part i keeping the NULL character in the middle of that argument list separated from the number 4. */
     static const char PS2HDD_args[]="-o\0""2";
     static const char PS2FS_args[]="-o\0""8";
@@ -92,7 +93,7 @@ void ps2_loadHDDModules(void){
     }
 }
 
-const char *GetMountParams(const char *command, char *BlockDevice){
+const char *GetMountParams(const char *command, char *BlockDevice) {
     const char *MountPath;
     int BlockDeviceNameLen;
     
@@ -108,7 +109,7 @@ const char *GetMountParams(const char *command, char *BlockDevice){
     return MountPath;
 }
 
-void SetPWDOnPFS(const char *FullCWD_path){
+void SetPWDOnPFS(const char *FullCWD_path) {
     int i;
     char *path;
     
@@ -138,26 +139,9 @@ void SetPWDOnPFS(const char *FullCWD_path){
     }
 }
 
-unsigned int mSec2HSyncTicks(unsigned int msec){
-    return msec*currentDisplayMode->HsyncsPerMsec;
-}
-
-void ThreadWakeupCB(s32 alarm_id, u16 time, void *arg2){
-    iWakeupThread(*(int*)arg2);
-}
-
-void DelayThread(unsigned short int msec){
-    int ThreadID;
-
-    if(msec>0){
-        ThreadID=GetThreadId();
-        SetAlarm(mSec2HSyncTicks(msec), &ThreadWakeupCB, &ThreadID);
-        SleepThread();
-    }
-}
 
 //HACK! If booting from a USB device, keep trying to open this program again until it succeeds. This will ensure that the emulator will be able to load its files.
-void WaitUntilDeviceIsReady(const char *path){
+void WaitUntilDeviceIsReady(const char *path) {
     FILE *file;
 
     while((file=fopen(path, "rb"))==NULL){
@@ -174,7 +158,7 @@ void WaitUntilDeviceIsReady(const char *path){
     fclose(file);
 }
 
-int GetBootDeviceID(const char *path){
+int GetBootDeviceID(const char *path) {
     int result;
 
     if(!strncmp(path, "mc0:", 4)) result=BOOT_DEVICE_MC0;
@@ -203,20 +187,18 @@ void lprintf(const char *fmt, ...)
 }
 
 //stdio.h has this defined, but it's missing.
-int setvbuf ( FILE * stream, char * buffer, int mode, size_t size ){
+int setvbuf ( FILE * stream, char * buffer, int mode, size_t size ) {
     return -1;
 }
 
 // PLAT METHODS
 
-int plat_get_root_dir(char *dst, int len)
-{
+int plat_get_root_dir(char *dst, int len) {
     if (len > 0) *dst = 0;
     return 0;
 }
 
-int plat_is_dir(const char *path)
-{
+int plat_is_dir(const char *path) {
     iox_stat_t cpstat;
     int isDir = 0;
     int iret;
@@ -229,8 +211,7 @@ int plat_is_dir(const char *path)
     return isDir;
 }
 
-void *plat_mmap(unsigned long addr, size_t size)
-{
+void *plat_mmap(unsigned long addr, size_t size) {
     void *req, *ret;
     //    TODO FJTRUJY import mmap function
     //    req = (void *)addr;
@@ -244,15 +225,13 @@ void *plat_mmap(unsigned long addr, size_t size)
     return ret;
 }
 
-void plat_munmap(void *ptr, size_t size)
-{
+void plat_munmap(void *ptr, size_t size) {
     //    TODO FJTRUJY import munmap function
     //    munmap(ptr, size);
     free(ptr);
 }
 
-void plat_video_menu_enter(int is_rom_loaded)
-{
+void plat_video_menu_enter(int is_rom_loaded) {
     lprintf("Plat Video Menu Enter\n");
     // We need to re-create the FrameBufferTexture to refresh the content
     deinitFrameBufferTexture();
@@ -262,8 +241,7 @@ void plat_video_menu_enter(int is_rom_loaded)
     syncBackgroundChache();
 }
 
-void plat_video_menu_begin(void)
-{
+void plat_video_menu_begin(void) {
     lprintf("Plat Video Menu Begin\n");
     resetFrameBufferTexture();
     clearGSGlobal();
@@ -271,8 +249,7 @@ void plat_video_menu_begin(void)
     clearBackgroundTexture();
 }
 
-void plat_video_menu_end(void)
-{
+void plat_video_menu_end(void) {
     lprintf("Plat Video Menu End\n");
     syncFrameBufferChache();
     clearFrameBufferTexture();
@@ -290,8 +267,7 @@ void plat_video_menu_end(void)
     dmaKit_wait_fast();
 }
 
-void plat_early_init(void)
-{
+void plat_early_init(void) {
     ee_sema_t sema;
 
     SifInitRpc(0);
@@ -313,8 +289,7 @@ void plat_early_init(void)
     initGSGlobal();
 }
 
-void plat_init(void)
-{
+void plat_init(void) {
     char cwd[FILENAME_MAX], BlockDevice[16];
     const char *MountPoint;
     int BootDeviceID;
@@ -354,8 +329,7 @@ void plat_init(void)
     
 }
 
-void plat_finish(void)
-{
+void plat_finish(void) {
     deinitFrameBufferTexture();
     deinitGSGlobal();
 
@@ -373,35 +347,24 @@ void plat_finish(void)
     SifExitRpc();
 }
 
-int plat_wait_event(int *fds_hnds, int count, int timeout_ms)
-{
+int plat_wait_event(int *fds_hnds, int count, int timeout_ms) {
     return -1;
 }
 
-void plat_sleep_ms(int ms)
-{
-    DelayThread(ms);
+void plat_sleep_ms(int ms) {
+    delayMS(ms);
 }
 
-unsigned int plat_get_ticks_ms(void)
-{
-    return plat_get_ticks_us()/1000;
+unsigned int plat_get_ticks_ms(void) {
+    return ticksMS();
 }
 
-unsigned int plat_get_ticks_us(void)
-{
-    //    return(clock()/(CLOCKS_PER_SEC*1000000UL));    //Broken.
-    return cpu_ticks()/295;
+unsigned int plat_get_ticks_us(void) {
+    return ticksUS();
 }
 
-void plat_wait_till_us(unsigned int us_to)
-{
-    unsigned int now, diff;
-    diff = (us_to-plat_get_ticks_us())/1000;
-    
-    if (diff > 0 && diff < 50 ) { // This maximum is to avoid the restart cycle of the PS2 cpu_ticks
-        DelayThread(diff);
-    }
+void plat_wait_till_us(unsigned int us_to) {
+    waitTillUS(us_to);
 }
 
 void plat_video_flip(void) {}
@@ -410,8 +373,7 @@ void plat_video_wait_vsync(void) {}
 
 void plat_status_msg_clear(void) {}
 
-void plat_status_msg_busy_next(const char *msg)
-{
+void plat_status_msg_busy_next(const char *msg) {
     plat_status_msg_clear();
     pemu_finalize_frame("", msg);
     emu_status_msg("");
@@ -421,20 +383,17 @@ void plat_status_msg_busy_next(const char *msg)
     reset_timing = 1;
 }
 
-void plat_status_msg_busy_first(const char *msg)
-{
+void plat_status_msg_busy_first(const char *msg) {
     plat_status_msg_busy_next(msg);
 }
 
 void plat_update_volume(int has_changed, int is_up) {}
 
-void plat_debug_cat(char *str)
-{
+void plat_debug_cat(char *str) {
     strcat(str, (currentConfig.EmuOpt&0x80) ? "soft clut\n" : "hard clut\n");    //TODO: is this valid for this port?
 }
 
-const char *plat_get_credits(void)
-{
+const char *plat_get_credits(void) {
     return "PicoDrive v" VERSION " (c) notaz, 06-09\n\n"
     "Returned life by fjtrujy (thanks sp193)\n/n"
     "Credits:\n"
