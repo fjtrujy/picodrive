@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <string.h>
 #include <libpad.h>
 #include <kernel.h>
 
@@ -62,7 +62,7 @@ unsigned int ps2_pad_read(int port, int slot)
     if((state==PAD_STATE_STABLE) || (state==PAD_STATE_FINDCTP1)){
         result=(padRead(port, slot, &buttons) != 0)?(0xffff^buttons.btns)&0xFFFF:0;
         
-        if(buttons.mode>>4&0xF!=PAD_TYPE_DIGITAL){
+        if(((buttons.mode>>4)&0xF)!=PAD_TYPE_DIGITAL) {
             // analog..
             if (buttons.ljoy_h < 128 - ANALOG_DEADZONE) result |= PBTN_NUB_L_LEFT;
             if (buttons.ljoy_h > 128 + ANALOG_DEADZONE) result |= PBTN_NUB_L_RIGHT;
@@ -313,7 +313,8 @@ static void in_ps2_get_def_binds(int *binds)
 /* remove binds of missing keys, count remaining ones */
 static int in_ps2_clean_binds(void *drv_data, int *binds, int *def_binds)
 {
-    int i, count = 0, have_vol = 0, have_menu = 0;
+    // int have_vol = 0;
+    int i, count = 0, have_menu = 0;
     
     for (i = 0; i < IN_PS2_NBUTTONS; i++) {
         int t, eb, offs;

@@ -43,7 +43,7 @@ int isSoundEnabled(void) {
 
 int is8BitsConfig(void) {
     int is8Bit = !(currentConfig.EmuOpt & EOPT_16BPP);
-    lprintf("is8BitConfig\n");
+    // lprintf("is8BitConfig\n");
     return is8Bit;
 }
 

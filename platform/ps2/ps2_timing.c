@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <kernel.h>
+#include <timer.h>
 
 #include "ps2_timing.h"
 #include "ps2_textures.h"
@@ -53,7 +54,7 @@ void delayCycles(unsigned short int cycles)
 
 void waitTillUS(unsigned int us_to)
 {
-    unsigned int now, diff;
+    unsigned int diff;
     diff = (us_to-ticksUS())/1000;
     
     if (diff > 0 && diff < 50 ) { // This maximum is to avoid the restart cycle of the PS2 cpu_ticks
