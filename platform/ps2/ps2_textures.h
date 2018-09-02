@@ -11,15 +11,23 @@
 extern GSGLOBAL *gsGlobal;
 extern GSTEXTURE *backgroundTexture;
 extern DISPLAYMODE *currentDisplayMode;
-// extern GSTEXTURE *frameBufferTexture;
+extern GSTEXTURE *frameBufferTexture;
 
 void initGSGlobal(void);
 void initBackgroundTexture(void);
-// void initFrameBufferTexture(void);
+void initFrameBufferTexture(void);
 
 void clearGSGlobal(void);
 void clearBackgroundTexture(void);
+void clearFrameBufferTexture(void);
 
+void syncGSGlobalChache(void);
 void syncBackgroundChache(void);
+void syncFrameBufferChache(void);
+
+void resetFrameBufferTexture(void);
+
+void deinitGSGlobal(void);
+void deinitFrameBufferTexture(void);
 
 #endif //PS2_TEXTURES_H

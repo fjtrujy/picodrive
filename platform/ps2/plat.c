@@ -5,10 +5,7 @@
 #include <kernel.h>
 #include <fileXio_rpc.h>
 #include <audsrv.h>
-#include <gsKit.h>
-#include <gsInline.h>
 
-#include "plat_ps2.h"
 #include "ps2_textures.h"
 #include "version.h"
 
@@ -18,8 +15,6 @@
 //Variables, Macros, Enums and Structs
 
 #define DEFAULT_PATH    "mass:"    //Only paths residing on "basic" devices (devices that don't require mounting) can be specified here, since this system doesn't perform mounting based on the path.
-
-GSTEXTURE FrameBufferTexture;
 
 extern unsigned char POWEROFF_irx_start[];
 extern unsigned int POWEROFF_irx_size;
@@ -57,18 +52,6 @@ extern unsigned int USBHDFSD_irx_size;
 static unsigned char HDDModulesLoaded=0;
 
 static int VBlankStartSema;
-
-enum BootDeviceIDs{
-    BOOT_DEVICE_UNKNOWN = -1,
-    BOOT_DEVICE_MC0 = 0,
-    BOOT_DEVICE_MC1,
-    BOOT_DEVICE_CDROM,
-    BOOT_DEVICE_MASS,
-    BOOT_DEVICE_HDD,
-    BOOT_DEVICE_HOST,
-    
-    BOOT_DEVICE_COUNT,
-};
 
 //Methods
 
@@ -205,83 +188,8 @@ int GetBootDeviceID(const char *path){
     return result;
 }
 
-void ps2_texture_deinit(void *texture_ptr)
-{
-    if(texture_ptr!=NULL){
-        free(texture_ptr);
-        texture_ptr=NULL;
-    }
-}
-
-size_t gskitTextureSize(GSTEXTURE *texture)
-{
-    return gsKit_texture_size_ee(texture->Width, texture->Height, texture->PSM);
-}
-
-void *gskitMemAlloc(GSTEXTURE *texture)
-{
-    return memalign(128, gskitTextureSize(texture));
-}
-
-void prepare_texture(GSTEXTURE *texture, int delayed)
-{
-    texture->Width=SCREEN_WIDTH;
-    texture->Height=SCREEN_HEIGHT;
-    texture->PSM=GS_PSM_CT16;
-    if (delayed) {
-        texture->Delayed=GS_SETTING_ON;
-    }
-    texture->Filter=GS_FILTER_NEAREST;
-    texture->Mem=gskitMemAlloc(texture);
-    gsKit_setup_tbw(texture);
-}
-
 /* common */
 char cpu_clk_name[16] = "PS2 CPU clocks";
-
-void ps2_ClearFrameBuffer(void){
-    ps2_texture_deinit(FrameBufferTexture.Mem);
-    ps2_texture_deinit(FrameBufferTexture.Clut);
-    
-    gsKit_vram_clear(gsGlobal);
-}
-
-// clears whole screen.
-void ps2_ClearScreen(void)
-{
-    memset(g_screen_ptr, 0, gskitTextureSize(&FrameBufferTexture));
-}
-
-void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2)
-{
-    gsKit_prim_sprite_texture(gsGlobal, &FrameBufferTexture, currentDisplayMode->StartX, currentDisplayMode->StartY,
-                                                        u1, v1,
-                                                        currentDisplayMode->StartX+currentDisplayMode->VisibleWidth, currentDisplayMode->StartY+currentDisplayMode->VisibleHeight,
-                                                        u2, v2,
-                                                        PS2_TEXTURES_Z_POSITION_BUFFER, GS_GREY);
-}
-
-void ps2_SyncTextureChache(GSTEXTURE *texture)
-{
-    SyncDCache(texture->Mem, (void*)((unsigned int)texture->Mem+gskitTextureSize(texture)));
-    gsKit_texture_send_inline(gsGlobal, texture->Mem, texture->Width, texture->Height, texture->Vram, texture->PSM, texture->TBW, GS_CLUT_NONE);
-}
-
-void ps2_redrawFrameBufferTexture(void){
-    ps2_SyncTextureChache(&FrameBufferTexture);
-    ps2_DrawFrameBuffer(0, 0, FrameBufferTexture.Width, FrameBufferTexture.Height);
-}
-
-void FlipFBNoSync(void){
-    //gsKit_switch_context(gsGlobal);    //Occasionally causes fast frame draws to lose some graphics. Since double buffering isn't used, perhaps that's caused by the 2nd frame buffer being invalid? In that case, not calling this function is the solution, I suppose.
-    gsKit_queue_exec(gsGlobal);
-}
-
-void SyncFlipFB(void){
-    PollSema(VBlankStartSema);    //Clear the semaphore to zero if it isn't already at zero, so that WaitSema will wait until the next VBlank start event.
-    WaitSema(VBlankStartSema);
-    FlipFBNoSync();
-}
 
 //Additional functions
 
@@ -345,27 +253,33 @@ void plat_munmap(void *ptr, size_t size)
 
 void plat_video_menu_enter(int is_rom_loaded)
 {
-    ps2_ClearFrameBuffer();
-    
-    prepare_texture(&FrameBufferTexture, 0);
-    g_screen_ptr=(void*)FrameBufferTexture.Mem;
-    
-    FrameBufferTexture.Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(FrameBufferTexture.Width, FrameBufferTexture.Height, FrameBufferTexture.PSM), GSKIT_ALLOC_USERBUFFER);
-    
+    lprintf("Plat Video Menu Enter\n");
+    // We need to re-create the FrameBufferTexture to refresh the content
+    deinitFrameBufferTexture();
+    initFrameBufferTexture();
+
+    syncFrameBufferChache();    
     syncBackgroundChache();
 }
 
 void plat_video_menu_begin(void)
 {
-    ps2_ClearScreen();
+    lprintf("Plat Video Menu Begin\n");
+    resetFrameBufferTexture();
     clearGSGlobal();
+    clearFrameBufferTexture();
     clearBackgroundTexture();
 }
 
 void plat_video_menu_end(void)
 {
-    ps2_redrawFrameBufferTexture();
-    SyncFlipFB();
+    lprintf("Plat Video Menu End\n");
+    syncFrameBufferChache();
+    clearFrameBufferTexture();
+
+    PollSema(VBlankStartSema);    //Clear the semaphore to zero if it isn't already at zero, so that WaitSema will wait until the next VBlank start event.
+    WaitSema(VBlankStartSema);
+    syncGSGlobalChache();
     /*
      FIXME: I don't know whether it's really a bug or not, but draw_menu_video_mode() fails to display text. I believe that it's because the GS is taking a while to receive/draw the uploaded frame buffer, and so the text stays on-screen for barely any time at all.
      Some things that makes that problem vanish:
@@ -395,14 +309,6 @@ void plat_early_init(void)
 
     while(!SifIopSync()){};
 
-    // We need to Init the GS as soon as possible
-    // InitGS();
-    /* Initilize DMAKit */
-    dmaKit_init(D_CTRL_RELE_OFF,D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
-    
-    /* Initialize the DMAC */
-    dmaKit_chan_init(DMA_CHANNEL_GIF);
-
     /* Initilize the GS */
     initGSGlobal();
 }
@@ -426,6 +332,7 @@ void plat_init(void)
     audsrv_init();
     
     initBackgroundTexture();
+    initFrameBufferTexture();
     
     //Mount the HDD partition, if required.
     if(BootDeviceID==BOOT_DEVICE_HDD){
@@ -449,10 +356,8 @@ void plat_init(void)
 
 void plat_finish(void)
 {
-    ps2_texture_deinit(FrameBufferTexture.Mem);
-    ps2_texture_deinit(FrameBufferTexture.Clut);
-
-    gsKit_deinit_global(gsGlobal);
+    deinitFrameBufferTexture();
+    deinitGSGlobal();
 
     DisableIntc(kINTC_VBLANK_START);
     RemoveIntcHandler(kINTC_VBLANK_START, 0);
@@ -518,7 +423,6 @@ void plat_status_msg_busy_next(const char *msg)
 
 void plat_status_msg_busy_first(const char *msg)
 {
-    ps2_memcpy_all_buffers(g_screen_ptr, 0, SCREEN_WIDTH*SCREEN_HEIGHT*2);
     plat_status_msg_busy_next(msg);
 }
 

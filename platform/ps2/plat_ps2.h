@@ -37,9 +37,19 @@ enum PS2_TEXTURES_Z_POSITION {
     PS2_TEXTURES_Z_POSITION_COUNT
 };
 
+enum BootDeviceIDs{
+    BOOT_DEVICE_UNKNOWN = -1,
+    BOOT_DEVICE_MC0 = 0,
+    BOOT_DEVICE_MC1,
+    BOOT_DEVICE_CDROM,
+    BOOT_DEVICE_MASS,
+    BOOT_DEVICE_HDD,
+    BOOT_DEVICE_HOST,
+    
+    BOOT_DEVICE_COUNT,
+};
+
 /* video */
-void ps2_DrawFrameBuffer(float u1, float v1, float u2, float v2);
-void ps2_ClearFrameBuffer(void);
 void ps2_ClearScreen(void);
 
 /* emu */
