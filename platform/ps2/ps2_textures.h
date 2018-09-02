@@ -9,7 +9,6 @@
 #include "plat_ps2.h"
 
 extern GSGLOBAL *gsGlobal;
-extern GSTEXTURE *backgroundTexture;
 extern DISPLAYMODE *currentDisplayMode;
 extern GSTEXTURE *frameBufferTexture;
 
