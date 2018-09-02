@@ -3,7 +3,7 @@
 
 #include "../common/emu.h"
 
-// int currentEmulationOpt(void);
+int currentEmulationOpt(void);
 
 int isShowFPSEnabled(void);
 int isSoundEnabled(void);
@@ -13,7 +13,7 @@ int isCDLedsEnabled(void);
 int isVSYNCEnabled(void);
 int isVSYNCModeEnabled(void);
 
-// void updateEmulationOpt(int newEmuOpt);
+void updateEmulationOpt(int newEmuOpt);
 
 void prepareDefaultConfig(void);
 void set16BtisConfig(void);

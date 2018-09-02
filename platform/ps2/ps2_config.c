@@ -29,9 +29,9 @@
 
 // PUBLIC METHODS
 
-// int currentEmulationOpt(void) {
-//     return currentConfig.EmuOpt;
-// }
+int currentEmulationOpt(void) {
+    return currentConfig.EmuOpt;
+}
 
 int isShowFPSEnabled(void) {
     return (currentConfig.EmuOpt & EOPT_SHOW_FPS);
@@ -67,9 +67,9 @@ void prepareDefaultConfig(void) {
     defaultConfig.EmuOpt = EOPT_EN_SRAM | EOPT_EN_SOUND | EOPT_GZIP_SAVES | EOPT_MMUHACK | EOPT_CONFIRM_SAVE | EOPT_EN_CD_LEDS;
 }
 
-// void updateEmulationOpt(int newEmuOpt) {
-//     currentConfig.EmuOpt = newEmuOpt;
-// }
+void updateEmulationOpt(int newEmuOpt) {
+    currentConfig.EmuOpt = newEmuOpt;
+}
 
 void set16BtisConfig(void) {
     currentConfig.EmuOpt |= EOPT_16BPP;

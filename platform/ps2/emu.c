@@ -497,7 +497,7 @@ void pemu_sound_wait(void) {
 void pemu_forced_frame(int opts) {
 	lprintf("pemu_forced_frame\n");
     int po_old = PicoOpt;
-    int eo_old = currentConfig.EmuOpt;
+    int eo_old = currentEmulationOpt();
     
     PicoOpt &= ~0x10;
     PicoOpt |= opts|POPT_ACC_SPRITES;
@@ -508,7 +508,7 @@ void pemu_forced_frame(int opts) {
     PicoFrameDrawOnly();
     
     PicoOpt = po_old;
-	currentConfig.EmuOpt = eo_old;
+	updateEmulationOpt(eo_old);
 }
 
 void pemu_loop_prep(void) {
