@@ -1,5 +1,6 @@
+include $(PS2SDK)/samples/Makefile.pref 
+
 #folders binaries & binaries
-EE_CC = ee-gcc
 EE_BIN2O = bin2o
 IRX_DIR = $(PS2SDK)/iop/irx
 EE_BIN = PicoDrive.elf
@@ -46,7 +47,7 @@ EE_OBJS += 	platform/common/emu.o platform/common/menu.o platform/common/fonts.o
 	 		platform/common/readpng.o platform/common/input.o platform/common/main.o
 
 # Pico
-EE_OBJS += pico/area.o pico/cart.o pico/debug.o ../../pico/memory.o ../../pico/misc.o \
+EE_OBJS += pico/area.o pico/cart.o pico/debug.o pico/memory.o pico/misc.o \
 		pico/pico/pico.o pico/pico/memory.o pico/pico/xpcm.o	\
 		pico/pico.o pico/sek.o pico/videoport.o pico/draw2.o pico/draw.o \
 		pico/patch.o pico/z80if.o pico/sms.o pico/mode4.o pico/eeprom.o \
@@ -135,28 +136,14 @@ $(EE_IRX_OBJ):
 	$(EE_BIN2O) $(IRX_DIR)/$(@:.o=.irx) $@ $(@:.o=_irx)
 
 
-../../cpu/musashi/m68kops.c :
-	make -C ../../cpu/musashi
-
-../../cpu/fame/famec.o : ../../cpu/fame/famec.c
-	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -Wno-unused -c $< -o $@
-
-../../pico/misc.o : ../../pico/misc.c
+#Specific rules for pico/misc.c and pico/memory.c
+pico/misc.o : pico/misc.c
 	@echo ">>>" $<
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MISC_C_AMIPS
 
-../../pico/memory.o : ../../pico/memory.c
+pico/memory.o : pico/memory.c
 	@echo ">>>" $<
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@ -D_ASM_MEMORY_C_AMIPS
-
-../../pico/cd/memory.o : ../../pico/cd/memory.c
-	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
-
-../../pico/cd/gfx_cd.o : ../../pico/cd/gfx_cd.c
-	@echo ">>>" $<
-	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
 
 clean:
 	rm -f $(EE_BIN) $(EE_IRX_OBJ) $(EE_OBJS)
