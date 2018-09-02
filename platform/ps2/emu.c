@@ -11,11 +11,11 @@
 #include "ps2_textures.h"
 #include "ps2_timing.h"
 #include "ps2_semaphore.h"
+#include "ps2_config.h"
 #include "mp3.h"
 #include "utils/asm.h"
 #include "../common/plat.h"
 #include "../common/menu.h"
-#include "../common/emu.h"
 #include "../common/config.h"
 #include "../common/input.h"
 #include "../common/lprintf.h"
@@ -41,7 +41,7 @@ static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVi
 static void emu_draw(int lagging_behind){
 	lprintf("emu_draw\n");
 	// want vsync?
-	if((currentConfig.EmuOpt & 0x2000) && (!(currentConfig.EmuOpt & 0x10000) || !lagging_behind)){
+	if(isVSYNCEnabled() && (!(isVSYNCModeEnabled()) || !lagging_behind)){
 		waitSemaphore();
 	}
 	
@@ -55,7 +55,7 @@ static void osd_text(int x, const char *text) {
 	char h;
 
 	ScreenHeight=FrameBufferTextureVisibleHeight+FrameBufferTextureVisibleOffsetY;
-	if(!(currentConfig.EmuOpt&0x80)){
+	if(is8BitsConfig()){
 		//8-bit mode
 		for (h = 8; h>=0; h--) {
 			unsigned char *screen_8 = g_screen_ptr;
@@ -145,7 +145,7 @@ static void cd_leds(void) {
 
 	reg = Pico_mcd->s68k_regs[0];
 
-	if (!(currentConfig.EmuOpt&0x80)) {
+	if (is8BitsConfig()) {
 		// 8-bit modes
 		col_g = (reg & 2) ? 0xc0c0c0c0 : 0xe0e0e0e0;
 		col_r = (reg & 1) ? 0xd0d0d0d0 : 0xe0e0e0e0;
@@ -171,7 +171,7 @@ static void draw_pico_ptr(void) {
     unsigned char *p = (unsigned char *)g_screen_ptr;
     
     // only if pen enabled and for 8bit mode
-    if (pico_inp_mode == 0 || (currentConfig.EmuOpt&0x80)) return;
+    if (pico_inp_mode == 0 || is16BitsAccurate()) return;
     
     p += 512 * (pico_pen_y + PICO_PEN_ADJUST_Y);
     p += pico_pen_x + PICO_PEN_ADJUST_X;
@@ -183,14 +183,14 @@ static void draw_pico_ptr(void) {
 static void blit(const char *fps, const char *notice, int lagging_behind) {
 	lprintf("blit\n");
 	if (notice)      osd_text(4, notice);
-	if (currentConfig.EmuOpt & 2) osd_text(OSD_FPS_X, fps);
+	if (isShowFPSEnabled()) osd_text(OSD_FPS_X, fps);
 
-	if ((currentConfig.EmuOpt & 0x400) && (PicoAHW & PAHW_MCD))
+	if (isCDLedsEnabled() && (PicoAHW & PAHW_MCD))
 		cd_leds();
 	if (PicoAHW & PAHW_PICO)
 		draw_pico_ptr();
 
-	if(!(currentConfig.EmuOpt&0x80)) blitscreen_clut();
+	if(is8BitsConfig()) blitscreen_clut();
 
 	SyncDCache(frameBufferTexture->Mem, (void*)((unsigned int)frameBufferTexture->Mem+gsKit_texture_size_ee(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM)));
 	gsKit_texture_send_inline(gsGlobal, frameBufferTexture->Mem, frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->Vram, frameBufferTexture->PSM, frameBufferTexture->TBW, GS_CLUT_TEXTURE); //Use GS_CLUT_TEXTURE for PSM_T8.
@@ -201,7 +201,7 @@ static void blit(const char *fps, const char *notice, int lagging_behind) {
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
 static void vidResetMode(void) {
-	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", !(currentConfig.EmuOpt&0x80)?8:16);
+	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", is8BitsConfig()?8:16);
     deinitFrameBufferTexture();
     
 	clearGSGlobal();
@@ -217,7 +217,7 @@ static void vidResetMode(void) {
 		FrameBufferTextureVisibleWidth=frameBufferTexture->Width;
 		FrameBufferTextureVisibleHeight=frameBufferTexture->Height;
 
-		if(!(currentConfig.EmuOpt&0x80)){
+		if(is8BitsConfig()){
 			//8-bit mode
 			PicoDrawSetColorFormat(2);
 			PicoScanBegin = &EmuScanSlow8;
@@ -257,7 +257,7 @@ static void vidResetMode(void) {
 		frameBufferTexture->ClutPSM=GS_PSM_CT16;
 	}
 
-	if(!(currentConfig.EmuOpt&0x80)){
+	if(is8BitsConfig()){
 		//8-bit mode
 		frameBufferTexture->Clut=memalign(128, gsKit_texture_size_ee(16, 16, frameBufferTexture->ClutPSM));
 		frameBufferTexture->VramClut=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(16, 16, frameBufferTexture->ClutPSM), GSKIT_ALLOC_USERBUFFER);
@@ -286,20 +286,20 @@ void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
 	lprintf("plat_video_toggle_renderer\n");
     if (force_16bpp) {
         PicoOpt &= ~POPT_ALT_RENDERER;
-        currentConfig.EmuOpt |= EOPT_16BPP;
+        set16BtisConfig();
     }
     /* alt, 16bpp, 8bpp */
     else if (PicoOpt & POPT_ALT_RENDERER) {
         PicoOpt &= ~POPT_ALT_RENDERER;
         if (is_next)
-            currentConfig.EmuOpt |= EOPT_16BPP;
-    } else if (!(currentConfig.EmuOpt & EOPT_16BPP)) {
+            set16BtisConfig();
+    } else if (is8BitsConfig()) {
         if (is_next)
             PicoOpt |= POPT_ALT_RENDERER;
         else
-            currentConfig.EmuOpt |= EOPT_16BPP;
+            set16BtisConfig();
     } else {
-        currentConfig.EmuOpt &= ~EOPT_16BPP;
+        set8BtisConfig();
         if (!is_next)
             PicoOpt |= POPT_ALT_RENDERER;
     }
@@ -311,10 +311,13 @@ void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
     
     if (PicoOpt & POPT_ALT_RENDERER) {
         emu_status_msg(" 8bit fast renderer");
-    } else if (currentConfig.EmuOpt & EOPT_16BPP) {
+		lprintf("8bit fast renderer\n");
+    } else if (is16BitsAccurate()) {
         emu_status_msg("16bit accurate renderer");
+		lprintf("16bit accurate renderer\n");
     } else {
         emu_status_msg(" 8bit accurate renderer");
+		lprintf("8bit accurate renderer");
     }
 }
 
@@ -331,7 +334,7 @@ static int sound_thread_id = -1;
 static unsigned char sound_thread_stack[0xA00] ALIGNED(128);
 
 void ps2_SetAudioFormat(unsigned int rate) {
-	lprintf("sound_thread\n");
+	lprintf("ps2_SetAudioFormat\n");
     struct audsrv_fmt_t AudioFmt;
     
     AudioFmt.bits = 16;
@@ -424,7 +427,7 @@ static void writeSound(int len) {
 
 void pemu_prep_defconfig(void) {
 	lprintf("pemu_prep_defconfig\n");
-    defaultConfig.EmuOpt    = 0x1d | 0x600; // | <- confirm_save, cd_leds, 8-bit acc rend
+    prepareDefaultConfig();
 }
 
 void pemu_validate_config(void) {
@@ -498,14 +501,14 @@ void pemu_forced_frame(int opts) {
     
     PicoOpt &= ~0x10;
     PicoOpt |= opts|POPT_ACC_SPRITES;
-    currentConfig.EmuOpt |= 0x80;
+    set16BtisConfig();
     
     vidResetMode();
     
     PicoFrameDrawOnly();
     
     PicoOpt = po_old;
-    currentConfig.EmuOpt = eo_old;
+	currentConfig.EmuOpt = eo_old;
 }
 
 void pemu_loop_prep(void) {
@@ -539,8 +542,7 @@ void pemu_loop_prep(void) {
     
     // prepare sound stuff
     PsndOut = NULL;
-    if (currentConfig.EmuOpt & 4)
-    {
+    if (isSoundEnabled()) {
         pemu_sound_start();
     }
 }

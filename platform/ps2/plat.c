@@ -9,10 +9,10 @@
 #include "ps2_textures.h"
 #include "ps2_timing.h"
 #include "ps2_semaphore.h"
+#include "ps2_config.h"
 #include "version.h"
 
 #include "../common/plat.h"
-#include "../common/emu.h"
 
 //Variables, Macros, Enums and Structs
 
@@ -371,7 +371,7 @@ void plat_status_msg_busy_first(const char *msg) {
 void plat_update_volume(int has_changed, int is_up) {}
 
 void plat_debug_cat(char *str) {
-    strcat(str, (currentConfig.EmuOpt&0x80) ? "soft clut\n" : "hard clut\n");    //TODO: is this valid for this port?
+    strcat(str, is16BitsAccurate() ? "hard clut\n" : "soft clut\n");    //TODO: is this valid for this port?
 }
 
 const char *plat_get_credits(void) {

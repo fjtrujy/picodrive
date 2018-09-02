@@ -26,7 +26,7 @@ static u32 textureSize(GSTEXTURE *texture) {
 }
 
 static void *textureEndPTR(GSTEXTURE *texture) {
-    return ((unsigned int)texture->Mem+textureSize(texture));
+    return ((void *)((unsigned int)texture->Mem+textureSize(texture)));
 }
 
 static size_t gskitTextureSize(GSTEXTURE *texture) {
@@ -175,4 +175,3 @@ void deinitFrameBufferTexture(void) {
     deinitTexturePTR(frameBufferTexture->Mem);
     deinitTexturePTR(frameBufferTexture->Clut);
 }
-    

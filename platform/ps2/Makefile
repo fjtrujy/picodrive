@@ -30,7 +30,7 @@ IOP_OBJS = IOMANX_irx.o FILEXIO_irx.o LIBSD_irx.o AUDSRV_irx.o USBD_irx.o USBHDF
 OBJS += $(IOP_OBJS)
 
 # frontend and stuff
-OBJS += emu.o plat.o mp3.o in_ps2.o ps2_textures.o ps2_timing.o ps2_semaphore.o utils/asm.o utils/io_suppliment.o
+OBJS += emu.o plat.o mp3.o in_ps2.o ps2_textures.o ps2_timing.o ps2_semaphore.o ps2_config.o utils/asm.o utils/io_suppliment.o
 
 # common
 OBJS += platform/common/emu.o platform/common/menu.o platform/common/fonts.o platform/common/config.o \
@@ -174,6 +174,7 @@ clean:
 	rm -rf $(DIRS)
 
 debug:
+	ps2client -h 192.168.1.150 netdump
 	ps2client -h 192.168.1.150 execee host:PicoDrive.elf
 
 reset:
