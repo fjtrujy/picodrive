@@ -1,0 +1,27 @@
+{
+    "files.exclude": {
+        "**/*.o": true,
+        "**/*.elf": true,
+        "**/*.bin": true
+    },
+    "files.autoSave": "onFocusChange",
+    "files.associations": {
+        "filexio_rpc.h": "c",
+        "plat_ps2.h": "c",
+        "stdio.h": "c",
+        "kernel.h": "c",
+        "audsrv.h": "c",
+        "string.h": "c",
+        "menu.h": "c",
+        "gsinline.h": "c",
+        "config.h": "c",
+        "plat.h": "c",
+        "emu.h": "c",
+        "version.h": "c",
+        "ps2_textures.h": "c",
+        "ps2_config.h": "c",
+        "unistd.h": "c",
+        "cstring": "c",
+        "stdarg.h": "c"
+    }
+}

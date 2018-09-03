@@ -39,7 +39,7 @@ EE_OBJS += $(EE_IRX_OBJ)
 # frontend and stuff
 EE_OBJS += emu.o plat.o mp3.o in_ps2.o
 # fronted utils
-EE_OBJS += utils/ps2_textures.o utils/ps2_timing.o utils/ps2_semaphore.o utils/ps2_config.o \
+EE_OBJS += utils/ps2_textures.o utils/ps2_timing.o utils/ps2_semaphore.o utils/ps2_config.o utils/ps2_modules.o \
 		utils/asm.o utils/io_suppliment.o
 
 # common
