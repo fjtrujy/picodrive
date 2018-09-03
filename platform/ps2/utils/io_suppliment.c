@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "utils/io_suppliment.h"
+#include "io_suppliment.h"
 
 int ps2_remove(const char *file){
 	char cwd[FILENAME_MAX], path[FILENAME_MAX];

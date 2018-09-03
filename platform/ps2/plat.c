@@ -12,10 +12,11 @@
 #include <sbv_patches.h>
 #include <libpad.h>
 
-#include "ps2_textures.h"
-#include "ps2_timing.h"
-#include "ps2_semaphore.h"
-#include "ps2_config.h"
+#include "utils/io_suppliment.h"
+#include "utils/ps2_textures.h"
+#include "utils/ps2_timing.h"
+#include "utils/ps2_semaphore.h"
+#include "utils/ps2_config.h"
 #include "version.h"
 
 #include "../common/plat.h"

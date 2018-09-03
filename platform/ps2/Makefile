@@ -36,15 +36,15 @@ EE_IRX = iomanX.irx fileXio.irx freesd.irx audsrv.irx usbd.irx usbhdfsd.irx powe
 EE_IRX_OBJ = $(EE_IRX:.irx=.o)
 EE_OBJS += $(EE_IRX_OBJ)
 
-# TESTING PORPUSE!!
-# EE_OBJS += main.o
-
 # frontend and stuff
-EE_OBJS += emu.o plat.o mp3.o in_ps2.o ps2_textures.o ps2_timing.o ps2_semaphore.o ps2_config.o utils/asm.o utils/io_suppliment.o
+EE_OBJS += emu.o plat.o mp3.o in_ps2.o
+# fronted utils
+EE_OBJS += utils/ps2_textures.o utils/ps2_timing.o utils/ps2_semaphore.o utils/ps2_config.o \
+		utils/asm.o utils/io_suppliment.o
 
 # common
-EE_OBJS += 	platform/common/emu.o platform/common/menu.o platform/common/fonts.o platform/common/config.o \
-	 		platform/common/readpng.o platform/common/input.o platform/common/main.o
+EE_OBJS += platform/common/emu.o platform/common/menu.o platform/common/fonts.o platform/common/config.o \
+	 	platform/common/readpng.o platform/common/input.o platform/common/main.o
 
 # Pico
 EE_OBJS += pico/area.o pico/cart.o pico/debug.o pico/memory.o pico/misc.o \
@@ -54,9 +54,9 @@ EE_OBJS += pico/area.o pico/cart.o pico/debug.o pico/memory.o pico/misc.o \
         pico/draw_mips_r5900.o pico/memory_mips_r5900.o pico/misc_mips_r5900.o
 
 # Pico - CD
-EE_OBJS += 	pico/cd/pico.o pico/cd/memory.o pico/cd/sek.o pico/cd/LC89510.o \
-			pico/cd/cd_sys.o pico/cd/cd_file.o pico/cd/gfx_cd.o \
-			pico/cd/area.o pico/cd/misc.o pico/cd/pcm.o pico/cd/buffering.o pico/cd/cue.o
+EE_OBJS += pico/cd/pico.o pico/cd/memory.o pico/cd/sek.o pico/cd/LC89510.o \
+		pico/cd/cd_sys.o pico/cd/cd_file.o pico/cd/gfx_cd.o \
+		pico/cd/area.o pico/cd/misc.o pico/cd/pcm.o pico/cd/buffering.o pico/cd/cue.o
 
 # Pico - 32X
 EE_OBJS += pico/32x/32x.o pico/32x/memory.o pico/32x/draw.o pico/32x/pwm.o
@@ -69,8 +69,8 @@ EE_OBJS += pico/sound/sound.o pico/sound/mix.o pico/sound/sn76496.o pico/sound/y
 
 # zlib (hacked)
 EE_OBJS += 	zlib/gzio.o zlib/inffast.o zlib/inflate.o zlib/inftrees.o zlib/trees.o \
-			zlib/deflate.o zlib/crc32.o zlib/adler32.o zlib/zutil.o zlib/compress.o \
-			zlib/uncompr.o
+		zlib/deflate.o zlib/crc32.o zlib/adler32.o zlib/zutil.o zlib/compress.o \
+		zlib/uncompr.o
 
 # unzip
 EE_OBJS += unzip/unzip.o unzip/unzip_stream.o

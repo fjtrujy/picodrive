@@ -6,9 +6,9 @@
 
 #include "../common/menu.h"
 #include "../common/emu.h"
+#include "../port_config.h"
 
 #include "ps2_textures.h"
-#include "port_config.h"
 
 // PRIVATE VARIABLES
 

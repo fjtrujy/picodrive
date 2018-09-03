@@ -8,10 +8,10 @@
 #include <kernel.h>
 #include <audsrv.h>
 
-#include "ps2_textures.h"
-#include "ps2_timing.h"
-#include "ps2_semaphore.h"
-#include "ps2_config.h"
+#include "utils/ps2_textures.h"
+#include "utils/ps2_timing.h"
+#include "utils/ps2_semaphore.h"
+#include "utils/ps2_config.h"
 #include "mp3.h"
 #include "utils/asm.h"
 #include "../common/plat.h"
