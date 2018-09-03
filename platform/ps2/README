@@ -1,0 +1,25 @@
+HOW TO COMPILE THE APP
+
+First of all, and maybe the most difficult step is make work the PS2ToolChain. 
+I said difficult because some times is not working in all the different Operating systems, Windows, Linux, Mac and x86 or x64
+
+- PS2ToolChain https://github.com/ps2dev/ps2toolchain
+
+Apart of the things installed automatically with the PS2ToolChain (https://github.com/ps2dev/ps2toolchain) you also need:
+
+- GSKit https://github.com/ps2dev/gsKit
+- PS2SDK-Ports https://github.com/ps2dev/ps2sdk-ports
+
+
+Finally I have my own fork of PS2SDK. I have done a small improvement overthere that simplify the Picodrive for PS2
+The Pull Request for this fork was done, time ago but it was rejected because they said that don't fit the POSIX standars.
+So, in order to make the project work you need to use my own fork
+
+- Custom PS2SDK https://github.com/fjtrujy/ps2sdk
+
+Finally I will try to have my fork updated with the latest PS2SDK commit, anyway in the wors scenario, you can contribute doing the PR xD
+
+Enjoy!
+
+
+PS: I will try to automate the process adding maybe an script that do everything automatically. But this something that I will try to do in the future.
