@@ -8,10 +8,11 @@
 #include <kernel.h>
 #include <audsrv.h>
 
+#include "utils/ps2_config.h"
+#include "utils/ps2_pico.h"
 #include "utils/ps2_textures.h"
 #include "utils/ps2_timing.h"
 #include "utils/ps2_semaphore.h"
-#include "utils/ps2_config.h"
 #include "mp3.h"
 #include "utils/asm.h"
 #include "../common/plat.h"
@@ -201,7 +202,7 @@ static void blit(const char *fps, const char *notice, int lagging_behind) {
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
 static void vidResetMode(void) {
-	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", (PicoOpt&0x10)?"Fast":"Accurate", is8BitsConfig()?8:16);
+	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", isPicoOptAlternativeRenderedEnabled()?"Fast":"Accurate", is8BitsConfig()?8:16);
     deinitFrameBufferTexture();
     
 	clearGSGlobal();
@@ -209,7 +210,7 @@ static void vidResetMode(void) {
 	// bilinear filtering for the PSP and PS2.
 	frameBufferTexture->Filter=(currentConfig.scaling)?GS_FILTER_LINEAR:GS_FILTER_NEAREST;
 
-	if(!(PicoOpt&0x10)){	//Accurate (line) renderer.
+	if(!isPicoOptAlternativeRenderedEnabled()){	//Accurate (line) renderer.
 		FrameBufferTextureVisibleOffsetX=0;	//Nothing to hide here.
 		FrameBufferTextureVisibleOffsetY=0;
 		frameBufferTexture->Width=SCREEN_WIDTH;
@@ -285,23 +286,23 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols){
 void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
 	lprintf("plat_video_toggle_renderer\n");
     if (force_16bpp) {
-        PicoOpt &= ~POPT_ALT_RENDERER;
+        setPicoOptNormalRendered();
         set16BtisConfig();
     }
     /* alt, 16bpp, 8bpp */
-    else if (PicoOpt & POPT_ALT_RENDERER) {
-        PicoOpt &= ~POPT_ALT_RENDERER;
+    else if (isPicoOptAlternativeRenderedEnabled()) {
+        setPicoOptNormalRendered();
         if (is_next)
             set16BtisConfig();
     } else if (is8BitsConfig()) {
         if (is_next)
-            PicoOpt |= POPT_ALT_RENDERER;
+            setPicoOptAlternativeRendered();
         else
             set16BtisConfig();
     } else {
         set8BtisConfig();
         if (!is_next)
-            PicoOpt |= POPT_ALT_RENDERER;
+            setPicoOptAlternativeRendered();
     }
     
     if (is_menu)
@@ -309,7 +310,7 @@ void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
     
     vidResetMode();
     
-    if (PicoOpt & POPT_ALT_RENDERER) {
+    if (isPicoOptAlternativeRenderedEnabled()) {
         emu_status_msg(" 8bit fast renderer");
 		lprintf("8bit fast renderer\n");
     } else if (is16BitsAccurate()) {
@@ -410,7 +411,7 @@ static void sound_init(void) {
 
 static void writeSound(int len) {
 	lprintf("writeSound\n");
-	if (PicoOpt&8) len<<=1;
+	if (isPicoOptStereoEnabled()) len<<=1;
 
 	PsndOut += len;
 	if (PsndOut >= sndBuffer_endptr)
@@ -441,17 +442,19 @@ void pemu_finalize_frame(const char *fps, const char *notice_msg) {
 
 void pemu_sound_start(void) {
 	lprintf("pemu_sound_start\n");
-    static int PsndRate_old = 0, PicoOpt_old = 0, pal_old = 0;
-    int stereo;
+    static int PsndRate_old = 0, oldPicoOptFullAudioEnabled = 0, pal_old = 0;
     
     SuspendThread(sound_thread_id);
     
     samples_made = samples_done = 0;
+
+	int psndRateChanged = PsndRate != PsndRate_old;
+	int fullAudioChanged = isPicoOptFullAudioEnabled() != oldPicoOptFullAudioEnabled;
+	int videoSystemChanged = Pico.m.pal != pal_old;
     
-    if (PsndRate != PsndRate_old || (PicoOpt&0x0b) != (PicoOpt_old&0x0b) || Pico.m.pal != pal_old) {
+    if ( psndRateChanged || fullAudioChanged || videoSystemChanged ) {
         PsndRerate(Pico.m.frame_count ? 1 : 0);
     }
-    stereo=(PicoOpt&8)>>3;
     
     samples_block = Pico.m.pal ? SOUND_BLOCK_SIZE_PAL : SOUND_BLOCK_SIZE_NTSC;
     if (PsndRate <= 11025) samples_block /= 4;
@@ -459,7 +462,7 @@ void pemu_sound_start(void) {
     sndBuffer_endptr = &sndBuffer[samples_block*SOUND_BLOCK_COUNT];
     
     lprintf("starting audio: %i, len: %i, stereo: %i, pal: %i, block samples: %i\n",
-            PsndRate, PsndLen, stereo, Pico.m.pal, samples_block);
+            PsndRate, PsndLen, isPicoOptStereoEnabled(), Pico.m.pal, samples_block);
     
     PicoWriteSound = writeSound;
     memset(sndBuffer, 0, sizeof(sndBuffer));
@@ -467,7 +470,7 @@ void pemu_sound_start(void) {
     samples_made = samples_block; // send 1 empty block first..
     PsndOut = sndBuffer;
     PsndRate_old = PsndRate;
-    PicoOpt_old  = PicoOpt;
+    oldPicoOptFullAudioEnabled  = isPicoOptFullAudioEnabled();
     pal_old = Pico.m.pal;
     
     ps2_SetAudioFormat(PsndRate);
@@ -496,18 +499,19 @@ void pemu_sound_wait(void) {
 
 void pemu_forced_frame(int opts) {
 	lprintf("pemu_forced_frame\n");
-    int po_old = PicoOpt;
+    int po_old = currentPicoOpt();
     int eo_old = currentEmulationOpt();
     
-    PicoOpt &= ~0x10;
-    PicoOpt |= opts|POPT_ACC_SPRITES;
+    setPicoOptNormalRendered();
+	setPicoOptAccSprites();
+	picoOptUpdateOpt(opts);
     set16BtisConfig();
     
     vidResetMode();
     
     PicoFrameDrawOnly();
     
-    PicoOpt = po_old;
+    setPicoOpt(po_old);
 	updateEmulationOpt(eo_old);
 }
 

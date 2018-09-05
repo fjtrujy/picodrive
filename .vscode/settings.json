@@ -22,6 +22,8 @@
         "ps2_config.h": "c",
         "unistd.h": "c",
         "cstring": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "gskit.h": "c",
+        "stdlib.h": "c"
     }
 }

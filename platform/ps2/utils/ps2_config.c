@@ -12,6 +12,7 @@
 // #define EOPT_GZIP_SAVES   (1<<3)  -----> 0x8     --------> 8
 // #define EOPT_MMUHACK      (1<<4)  -----> 0x10    --------> 16
 // #define EOPT_NO_AUTOSVCFG (1<<5)  -----> 0x20    --------> 32
+// // unused                 (1<<6)  -----> 0x40    --------> 64
 // #define EOPT_16BPP        (1<<7)  -----> 0x80    --------> 128
 // #define EOPT_RAM_TIMINGS  (1<<8)  -----> 0x100   --------> 256
 // #define EOPT_CONFIRM_SAVE (1<<9)  -----> 0x200   --------> 512
