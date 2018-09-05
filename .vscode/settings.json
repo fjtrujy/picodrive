@@ -24,6 +24,7 @@
         "cstring": "c",
         "stdarg.h": "c",
         "gskit.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "pico.h": "c"
     }
 }

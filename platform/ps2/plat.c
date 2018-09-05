@@ -22,9 +22,6 @@
 
 #include "../common/plat.h"
 
-//Variables, Macros, Enums and Structs
-
-
 //Methods
 //This method should be called from common class but... I have allocated here for now
 static void in_deinit(void) {
