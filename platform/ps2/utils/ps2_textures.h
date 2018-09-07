@@ -27,6 +27,8 @@ void syncFrameBufferChache(void);
 void resetFrameBufferTexture(void);
 
 void deinitGSGlobal(void);
+void deinitBackgroundTexture(void);
 void deinitFrameBufferTexture(void);
+void deinitPS2Textures(void);
 
 #endif //PS2_TEXTURES_H

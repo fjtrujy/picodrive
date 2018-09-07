@@ -8,6 +8,8 @@ int isPicoOptMCDCDDAEnabled(void);
 int isPicoOptStereoEnabled(void);
 int isPicoOptFullAudioEnabled(void);
 
+void setPicoOptNormalRendered(void);
+void setPicoOptAlternativeRendered(void);
 void setPicoOptAccSprites(void);
 void setPicoOpt(int newOpt);
 void picoOptUpdateOpt(int newOpt);

@@ -4,6 +4,7 @@ include $(PS2SDK)/samples/Makefile.pref
 EE_BIN2O = bin2o
 IRX_DIR = $(PS2SDK)/iop/irx
 EE_BIN = PicoDrive.elf
+PS2_LINK_URL = 192.168.2.150
 
 # settings
 use_musashi = 0
@@ -18,12 +19,13 @@ EE_CFLAGS += -g
 EE_ASFLAGS += -g
 else
 EE_LDFLAGS += -s
+EE_CFLAGS +=
 endif
 
 # Linker flags
 EE_LDFLAGS += -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ee/lib -Tlinkfile
 # C compiler flags
-EE_CFLAGS += -mno-gpopt -O3 -G0 -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -DIN_PS2
+EE_CFLAGS += -mno-gpopt -O2 -D_EE -Wall -G0 -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -DIN_PS2
 
 # Include directories
 EE_INCS += -I../.. -I. -I$(PS2SDK)/ports/include -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include
@@ -40,7 +42,7 @@ EE_OBJS += $(EE_IRX_OBJ)
 EE_OBJS += emu.o plat.o mp3.o in_ps2.o
 # fronted utils
 EE_OBJS += utils/ps2_textures.o utils/ps2_timing.o utils/ps2_semaphore.o utils/ps2_config.o utils/ps2_modules.o \
-		utils/ps2_pico.o utils/ps2_drawer.o utils/asm.o utils/io_suppliment.o
+		utils/ps2_pico.o utils/ps2_drawer.o utils/ps2_sound.o utils/asm.o utils/io_suppliment.o
 
 # common
 EE_OBJS += platform/common/emu.o platform/common/menu.o platform/common/fonts.o platform/common/config.o \
@@ -150,11 +152,11 @@ clean:
 	rm -rf $(DIRS)
 
 debug:
-	ps2client -h 192.168.1.150 netdump
-	ps2client -h 192.168.1.150 execee host:$(EE_BIN)
+	ps2client -h $(PS2_LINK_URL) netdump
+	ps2client -h $(PS2_LINK_URL) execee host:$(EE_BIN)
 
 reset:
-	ps2client -h 192.168.1.150 reset
+	ps2client -h $(PS2_LINK_URL) reset
 
 restart: reset all debug
 

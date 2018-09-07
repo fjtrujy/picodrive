@@ -9,7 +9,6 @@
 #include <sifrpc.h>
 #include <iopcontrol.h>
 #include <unistd.h>
-#include <sbv_patches.h>
 #include <libpad.h>
 
 #include "utils/io_suppliment.h"
@@ -20,6 +19,7 @@
 #include "utils/ps2_timing.h"
 #include "version.h"
 
+#include "../common/emu.h"
 #include "../common/plat.h"
 
 //Methods
@@ -140,15 +140,15 @@ void plat_early_init(void) {
 
 }
 
-void plat_init(void) {    
+void plat_init(void) {
+    SifInitRpc(0);
     initModules();
     initBackgroundTexture();
     initFrameBufferTexture();
 }
 
 void plat_finish(void) {
-    deinitFrameBufferTexture();
-    deinitGSGlobal();
+    deinitPS2Textures();
     deinitSemaphore();
     in_deinit();
     deinitModules();

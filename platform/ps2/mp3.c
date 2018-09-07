@@ -5,6 +5,7 @@
 
 #include <mad.h>
 
+#include "utils/ps2_pico.h"
 #include "../../pico/pico_int.h"
 #include "../../pico/sound/mix.h"
 #include "../common/lprintf.h"

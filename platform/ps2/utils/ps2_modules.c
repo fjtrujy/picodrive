@@ -4,7 +4,11 @@
 #include <stdarg.h>
 #include <kernel.h>
 #include <io_common.h>
+#include <loadfile.h>
 #include <unistd.h>
+#include <sbv_patches.h>
+#include <fileXio_rpc.h>
+#include <audsrv.h>
 
 #include "ps2_modules.h"
 
@@ -175,8 +179,6 @@ void initModules(void) {
     char cwd[FILENAME_MAX], blockDevice[16];
     const char *mountPoint;
     int bootDeviceID;
-
-    SifInitRpc(0);
     
     sbv_patch_enable_lmb();
     

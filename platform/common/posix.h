@@ -21,6 +21,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+//Imports needed because common classes uses this methdods
+#include <fileXio_rpc.h>
+#include "../ps2/utils/io_suppliment.h"
+#include "../ps2/utils/ps2_modules.h"
+#include "../ps2/in_ps2.h"
+
 #define APA_FLAG_SUB        0x0001
 #define DT_DIR 4607
 #define DT_REG 8703

@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <kernel.h>
 
-#include "../../../Pico/pico.h"
+#include <pico/pico_int.h>
 
 #include "ps2_pico.h"
 

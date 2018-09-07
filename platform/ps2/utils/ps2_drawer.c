@@ -6,9 +6,11 @@
 #include <kernel.h>
 
 #include "../../../Pico/pico.h"
+#include "../../common/emu.h"
 #include <pico/pico_int.h>
 #include <pico/cd/cue.h>
 
+#include "asm.h"
 #include "ps2_config.h"
 #include "ps2_drawer.h"
 #include "ps2_semaphore.h"

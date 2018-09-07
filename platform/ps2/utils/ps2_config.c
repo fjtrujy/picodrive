@@ -5,6 +5,7 @@
 #include <kernel.h>
 
 #include "ps2_config.h"
+#include "../../common/emu.h"
 
 // #define EOPT_EN_SRAM      (1<<0)  -----> 0x1     --------> 1
 // #define EOPT_SHOW_FPS     (1<<1)  -----> 0x2     --------> 2

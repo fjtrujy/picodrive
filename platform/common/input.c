@@ -9,6 +9,10 @@
 #include "../gp2x/in_gp2x.h"
 #include "../win32/in_vk.h"
 
+#ifdef IN_PS2
+#include "../ps2/in_ps2.h"
+#endif
+
 typedef struct
 {
 	int drv_id;

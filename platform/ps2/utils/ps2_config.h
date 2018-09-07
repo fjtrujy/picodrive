@@ -1,8 +1,6 @@
 #ifndef PS2_CONFIG_H
 #define PS2_CONFIG_H
 
-#include "../common/emu.h"
-
 int currentEmulationOpt(void);
 
 int isShowFPSEnabled(void);
