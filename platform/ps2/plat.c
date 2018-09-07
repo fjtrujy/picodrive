@@ -20,6 +20,7 @@
 #include "utils/ps2_timing.h"
 #include "version.h"
 
+#include "../common/emu.h"
 #include "../common/plat.h"
 
 //Methods

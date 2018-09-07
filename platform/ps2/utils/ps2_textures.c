@@ -4,8 +4,8 @@
 #include <stdarg.h>
 #include <kernel.h>
 
-#include "../common/menu.h"
-#include "../common/emu.h"
+#include "../../common/emu.h"
+#include "../../common/menu.h"
 #include "../port_config.h"
 
 #include "ps2_textures.h"

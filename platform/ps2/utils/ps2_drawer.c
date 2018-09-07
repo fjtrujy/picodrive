@@ -6,6 +6,7 @@
 #include <kernel.h>
 
 #include "../../../Pico/pico.h"
+#include "../../common/emu.h"
 #include <pico/pico_int.h>
 #include <pico/cd/cue.h>
 
