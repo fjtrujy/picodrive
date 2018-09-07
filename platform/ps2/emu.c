@@ -49,13 +49,8 @@ void spend_cycles(int c) {
 }
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
-static void vidResetMode(void) {
-	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", isPicoOptAlternativeRenderedEnabled()?"Fast":"Accurate", is8BitsConfig()?8:16);
-    deinitFrameBufferTexture();
-    
-	clearGSGlobal();
-
-	// bilinear filtering for the PSP and PS2.
+static void prepareForVidResetMode(void) {
+		// bilinear filtering for the PSP and PS2.
 	frameBufferTexture->Filter=(currentConfig.scaling)?GS_FILTER_LINEAR:GS_FILTER_NEAREST;
 
 	if(!isPicoOptAlternativeRenderedEnabled()){	//Accurate (line) renderer.
@@ -87,6 +82,17 @@ static void vidResetMode(void) {
 		frameBufferTexture->PSM=GS_PSM_T8;
 		frameBufferTexture->ClutPSM=GS_PSM_CT16;
 	}
+}
+
+
+static void vidResetMode(void) {
+	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", isPicoOptAlternativeRenderedEnabled()?"Fast":"Accurate", is8BitsConfig()?8:16);
+    deinitFrameBufferTexture();
+    
+	clearGSGlobal();
+
+	//set the proper size in the framebuffer
+	prepareForVidResetMode();
 
 	//update drawer config
 	emuDrawerUpdateConfig();
@@ -208,12 +214,7 @@ void pemu_forced_frame(int opts) {
 void pemu_loop_prep(void) {
 	lprintf("pemu_loop_prep\n");
     
-	frameBufferTexture->Width=0;
-    frameBufferTexture->Height=0;
-    frameBufferTexture->Mem=NULL;
-    frameBufferTexture->Clut=NULL;
-    PicoDraw2FB=NULL;
-
+	deinitFrameBufferTexture();
 	emuDrawerPrepareConfig();
     vidResetMode();
     emuSoundPrepare();

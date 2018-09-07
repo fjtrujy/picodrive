@@ -148,8 +148,7 @@ void plat_init(void) {
 }
 
 void plat_finish(void) {
-    deinitFrameBufferTexture();
-    deinitGSGlobal();
+    deinitPS2Textures();
     deinitSemaphore();
     in_deinit();
     deinitModules();
