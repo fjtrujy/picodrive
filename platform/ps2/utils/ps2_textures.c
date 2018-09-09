@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <kernel.h>
-
-#include <pico/pico_int.h>
+#include <gsKit.h>
+#include <gsInline.h>
 
 #include "../../common/emu.h"
 #include "../../common/menu.h"
@@ -100,8 +100,6 @@ static void deinitTexturePTR(void *texture_ptr) {
 }
 
 static void deinitTexture(GSTEXTURE *texture) {
-    texture->Width=0;
-    texture->Height=0;
     deinitTexturePTR(texture->Mem);
     deinitTexturePTR(texture->Clut);
 }
@@ -140,8 +138,7 @@ void initFrameBufferTexture(void) {
     frameBufferTexture = malloc(sizeof *frameBufferTexture);
     prepareTexture(frameBufferTexture, 0);
 
-    g_screen_ptr = frameBufferTexture->Mem; // this pointer is used in the common classes
-    PicoDraw2FB = g_screen_ptr; // this pointer is used in the Pico classes
+    g_screen_ptr=frameBufferTexture->Mem; // this pointer is used in the common classes
 }
 
 void clearGSGlobal(void) {
@@ -181,26 +178,10 @@ void deinitGSGlobal(void) {
     gsKit_deinit_global(gsGlobal);
 }
 
-void deinitBackgroundTexture(void) {
-    deinitTexture(backgroundTexture);
-}
-
 void deinitFrameBufferTexture(void) {
     deinitTexture(frameBufferTexture);
-    g_screen_ptr = NULL; // this pointer is used in the common classes
-    PicoDraw2FB = NULL; // this pointer is used in the Pico classes
 }
 
-void deinitPS2Textures(void) {
-    deinitFrameBufferTexture();
-    deinitBackgroundTexture();
-    deinitGSGlobal();
+void deinitBackgroundTexture(void) {
+    // deinitTexture(backgroundTexture); //I dont know why crash here
 }
-
-
-// gsKit_setup_tbw(frameBufferTexture);
-// 	frameBufferTexture->Mem=memalign(128, gsKit_texture_size_ee(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM));
-// 	frameBufferTexture->Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM), GSKIT_ALLOC_USERBUFFER);
-// 	DrawLineDest=PicoDraw2FB=g_screen_ptr=(void*)((unsigned int)frameBufferTexture->Mem);
-
-// 	resetFrameBufferTexture();

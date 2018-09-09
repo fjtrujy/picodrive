@@ -3,9 +3,6 @@
 #ifndef PS2_TEXTURES_H
 #define PS2_TEXTURES_H
 
-#include <gsKit.h>
-#include <gsInline.h>
-
 #include "plat_ps2.h"
 
 extern GSGLOBAL *gsGlobal;
@@ -29,6 +26,5 @@ void resetFrameBufferTexture(void);
 void deinitGSGlobal(void);
 void deinitBackgroundTexture(void);
 void deinitFrameBufferTexture(void);
-void deinitPS2Textures(void);
 
 #endif //PS2_TEXTURES_H

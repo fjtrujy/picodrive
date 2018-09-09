@@ -23,9 +23,10 @@ EE_CFLAGS +=
 endif
 
 # Linker flags
+EE_GPVAL = -G0
 EE_LDFLAGS += -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ee/lib -Tlinkfile
 # C compiler flags
-EE_CFLAGS += -mno-gpopt -O2 -D_EE -Wall -G0 -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -DIN_PS2
+EE_CFLAGS += -mno-gpopt -O3 -D_EE -Wall $(EE_GPVAL) -DNO_SYNC -DUTYPES_DEFINED -D_ASM_DRAW_C_AMIPS -DIN_PS2
 
 # Include directories
 EE_INCS += -I../.. -I. -I$(PS2SDK)/ports/include -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include
@@ -135,7 +136,7 @@ mkdirs:
 
 #Specific file name and output per IRX Module
 $(EE_IRX_OBJ):
-	$(EE_BIN2O) $(IRX_DIR)/$(@:.o=.irx) $@ $(@:.o=_irx)
+	$(EE_BIN2O) $(EE_GPVAL) $(IRX_DIR)/$(@:.o=.irx) $@ $(@:.o=_irx)
 
 
 #Specific rules for pico/misc.c and pico/memory.c
