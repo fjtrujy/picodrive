@@ -226,9 +226,25 @@ static int EmuScanSlow16(unsigned int num) {
 	return 0;
 }
 
-void spend_cycles(int c) {
-	lprintf("spend_cycles\n");
-    delayCycles(c);
+static void setupFrameBufferTextureForEmulation(void) {
+
+}
+
+static void initFrameBufferTextureForEmulation(void) {
+	if(is8BitsConfig()){
+		//8-bit mode
+		frameBufferTexture->Clut=memalign(128, gsKit_texture_size_ee(16, 16, frameBufferTexture->ClutPSM));
+		frameBufferTexture->VramClut=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(16, 16, frameBufferTexture->ClutPSM), GSKIT_ALLOC_USERBUFFER);
+	}
+	else{
+		//16-bit mode (No CLUT).
+		frameBufferTexture->Clut=NULL;
+	}
+
+	gsKit_setup_tbw(frameBufferTexture);
+	frameBufferTexture->Mem=memalign(128, gsKit_texture_size_ee(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM));
+	frameBufferTexture->Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM), GSKIT_ALLOC_USERBUFFER);
+	DrawLineDest=PicoDraw2FB=g_screen_ptr=(void*)((unsigned int)frameBufferTexture->Mem);
 }
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
@@ -270,38 +286,20 @@ static void vidResetMode(void) {
 		frameBufferTexture->PSM=GS_PSM_T8;
 		frameBufferTexture->ClutPSM=GS_PSM_CT16;
 	}
+	setupFrameBufferTextureForEmulation();
 
 	//update drawer config
 	emuDrawerUpdateConfig();
 
-	if(is8BitsConfig()){
-		//8-bit mode
-		frameBufferTexture->Clut=memalign(128, gsKit_texture_size_ee(16, 16, frameBufferTexture->ClutPSM));
-		frameBufferTexture->VramClut=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(16, 16, frameBufferTexture->ClutPSM), GSKIT_ALLOC_USERBUFFER);
-	}
-	else{
-		//16-bit mode (No CLUT).
-		frameBufferTexture->Clut=NULL;
-	}
-
-	gsKit_setup_tbw(frameBufferTexture);
-	frameBufferTexture->Mem=memalign(128, gsKit_texture_size_ee(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM));
-	frameBufferTexture->Vram=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(frameBufferTexture->Width, frameBufferTexture->Height, frameBufferTexture->PSM), GSKIT_ALLOC_USERBUFFER);
-	DrawLineDest=PicoDraw2FB=g_screen_ptr=(void*)((unsigned int)frameBufferTexture->Mem);
-
+	initFrameBufferTextureForEmulation();
 	resetFrameBufferTexture();
 
 	Pico.m.dirtyPal = 1;	//Since the VRAM for the CLUT has been reallocated, reupload it.
 }
 
-void emu_video_mode_change(int start_line, int line_count, int is_32cols){
-    lprintf("emu_video_mode_change\n");
-	resetFrameBufferTexture();
-}
-
-void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
-	lprintf("plat_video_toggle_renderer\n");
-    if (force_16bpp) {
+static void toogleRendererPicoConfig(int is_next, int force_16bpp)
+{
+	if (force_16bpp) {
         setPicoOptNormalRendered();
         set16BtisConfig();
     }
@@ -320,13 +318,10 @@ void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
         if (!is_next)
             setPicoOptAlternativeRendered();
     }
-    
-    if (is_menu)
-        return;
-    
-    vidResetMode();
-    
-    if (isPicoOptAlternativeRenderedEnabled()) {
+}
+
+static void showRendererStatusMessage(void) {
+	if (isPicoOptAlternativeRenderedEnabled()) {
         emu_status_msg(" 8bit fast renderer");
 		lprintf("8bit fast renderer\n");
     } else if (is16BitsAccurate()) {
@@ -338,7 +333,43 @@ void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
     }
 }
 
-// All the PEMU Methods
+static void toogleRenderer(int is_next, int force_16bpp, int is_menu) {
+	
+    toogleRendererPicoConfig(is_next, force_16bpp);
+    
+	// If we are in the menu, then we don't need to reset the video mode
+	if (is_menu)
+        return;
+    
+    vidResetMode();
+    
+    showRendererStatusMessage();
+}
+
+static void deinitFrameBufferTextureForEmulation(void) {
+	frameBufferTexture->Width=0;
+    frameBufferTexture->Height=0;
+    frameBufferTexture->Mem=NULL;
+    frameBufferTexture->Clut=NULL;
+    PicoDraw2FB=NULL;
+}
+
+// All the PEMU, EMU, PLAT, ARM Methods
+
+void spend_cycles(int c) {
+	lprintf("spend_cycles\n");
+    delayCycles(c);
+}
+
+void emu_video_mode_change(int start_line, int line_count, int is_32cols){
+    lprintf("emu_video_mode_change\n");
+	resetFrameBufferTexture();
+}
+
+void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
+	lprintf("plat_video_toggle_renderer\n");
+	toogleRenderer(is_next, force_16bpp, is_menu);
+}
 
 void pemu_prep_defconfig(void) {
 	lprintf("pemu_prep_defconfig\n");
@@ -389,13 +420,7 @@ void pemu_forced_frame(int opts) {
 
 void pemu_loop_prep(void) {
 	lprintf("pemu_loop_prep\n");
-    
-	frameBufferTexture->Width=0;
-    frameBufferTexture->Height=0;
-    frameBufferTexture->Mem=NULL;
-    frameBufferTexture->Clut=NULL;
-    PicoDraw2FB=NULL;
-
+	deinitFrameBufferTextureForEmulation();
 	emuDrawerPrepareConfig();
 
     ps2_soundInit();
