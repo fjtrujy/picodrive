@@ -138,7 +138,8 @@ void initFrameBufferTexture(void) {
     frameBufferTexture = malloc(sizeof *frameBufferTexture);
     prepareTexture(frameBufferTexture, 0);
 
-    g_screen_ptr=frameBufferTexture->Mem; // this pointer is used in the common classes
+    g_menuscreen_ptr=g_screen_ptr=frameBufferTexture->Mem; // this pointer is used in the common classes
+    
 }
 
 void clearGSGlobal(void) {
