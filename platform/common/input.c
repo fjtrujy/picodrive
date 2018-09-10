@@ -362,9 +362,6 @@ int in_update_keycode(int *dev_id_out, int *is_down_out, int timeout_ms)
 
 		drv = &DRV(in_devices[dev_id].drv_id);
 		result = drv->update_keycode(in_devices[dev_id].drv_data, &is_down);
-
-		/* update_keycode() might return -1 when some not interesting
-		 * event happened, like sync event for evdev. */
 		if (result >= 0)
 			break;
 
@@ -377,7 +374,7 @@ int in_update_keycode(int *dev_id_out, int *is_down_out, int timeout_ms)
 		}
 	}
     
-	if (result == -1)
+	if (result < 0)
 		return -1;
 finish:
 	/* keep track of menu key state, to allow mixing
