@@ -4,7 +4,7 @@ include $(PS2SDK)/samples/Makefile.pref
 EE_BIN2O = bin2o
 IRX_DIR = $(PS2SDK)/iop/irx
 EE_BIN = PicoDrive.elf
-PS2_LINK_URL = 192.168.2.150
+PS2_LINK_URL = 192.168.1.150
 
 # settings
 use_musashi = 0

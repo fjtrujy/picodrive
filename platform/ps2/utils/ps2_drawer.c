@@ -38,7 +38,7 @@ static unsigned short int FrameBufferTextureVisibleOffsetX, FrameBufferTextureVi
 // Private Methods
 
 static void emuDrawerFinish(int lagging_behind) {
-	lprintf("emuDrawerFinish\n");
+	//lprintf("FJTRUJY: emuDrawerFinish\n");
 	// want vsync?
 	if(isVSYNCEnabled() && (!(isVSYNCModeEnabled()) || !lagging_behind)){
 		waitSemaphore();
@@ -48,21 +48,13 @@ static void emuDrawerFinish(int lagging_behind) {
 }
 
 static void osd_text(int x, const char *text) {
-	lprintf("osd_text\n");
+	//lprintf("FJTRUJY: osd_text\n");
 	unsigned short int ScreenHeight;
 	int len = strlen(text) * 8;
 	char h;
 
 	ScreenHeight=FrameBufferTextureVisibleHeight+FrameBufferTextureVisibleOffsetY;
-	if(is8BitsConfig()){
-		//8-bit mode
-		for (h = 8; h>=0; h--) {
-			unsigned char *screen_8 = g_screen_ptr;
-			memset(&screen_8[x+FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(ScreenHeight-h-1)], OSD_STAT_BLK_PAL_ENT, len);
-		}
-		emu_text_out8(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
-	}
-	else{
+	if(is16Bits()) {
 		//16-bit mode
 		for (h = 8; h >= 0; h--) {
 			int pixel_w;
@@ -72,11 +64,18 @@ static void osd_text(int x, const char *text) {
 			}
 		}
 		emu_text_out16(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
+	} else {
+		//8-bit mode
+		for (h = 8; h>=0; h--) {
+			unsigned char *screen_8 = g_screen_ptr;
+			memset(&screen_8[x+FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(ScreenHeight-h-1)], OSD_STAT_BLK_PAL_ENT, len);
+		}
+		emu_text_out8(x+FrameBufferTextureVisibleOffsetX, ScreenHeight-8, text);
 	}
 }
 
 static void do_pal_update(void) {
-	lprintf("do_pal_update\n");
+	//lprintf("FJTRUJY: do_pal_update\n");
 	int i;
 	unsigned short int *pal=(void *)frameBufferTexture->Clut;
 	//Megadrive palette:	0000BBB0GGG0RRR0
@@ -110,7 +109,7 @@ static void do_pal_update(void) {
 }
 
 static void blitscreen_clut(void) {
-	lprintf("blitscreen_clut\n");
+	//lprintf("FJTRUJY: blitscreen_clut\n");
 	if(Pico.m.dirtyPal){
 		do_pal_update();
 
@@ -120,12 +119,20 @@ static void blitscreen_clut(void) {
 }
 
 static void cd_leds(void) {
-	lprintf("cd_leds\n");
+	//lprintf("FJTRUJY: cd_leds\n");
     unsigned int reg, col_g, col_r;
 
 	reg = Pico_mcd->s68k_regs[0];
 
-	if (is8BitsConfig()) {
+	if (is16Bits()) {
+		// 16-bit modes
+		unsigned int *p = (unsigned int *)((short *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(2+FrameBufferTextureVisibleOffsetY)+4);
+		unsigned int col_g = (reg & 2) ? 0x83008300 : 0x80008000;
+		unsigned int col_r = (reg & 1) ? 0x80188018 : 0x80008000;
+		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += frameBufferTexture->Width/2 - 12/2;
+		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += frameBufferTexture->Width/2 - 12/2;
+		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r;
+	} else {
 		// 8-bit modes
 		col_g = (reg & 2) ? 0xc0c0c0c0 : 0xe0e0e0e0;
 		col_r = (reg & 1) ? 0xd0d0d0d0 : 0xe0e0e0e0;
@@ -135,23 +142,15 @@ static void cd_leds(void) {
 		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(2+FrameBufferTextureVisibleOffsetY)+12) =
 		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(3+FrameBufferTextureVisibleOffsetY)+12) =
 		*(unsigned int *)((char *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(4+FrameBufferTextureVisibleOffsetY)+12) = col_r;
-	} else {
-		// 16-bit modes
-		unsigned int *p = (unsigned int *)((short *)g_screen_ptr + FrameBufferTextureVisibleOffsetX+frameBufferTexture->Width*(2+FrameBufferTextureVisibleOffsetY)+4);
-		unsigned int col_g = (reg & 2) ? 0x83008300 : 0x80008000;
-		unsigned int col_r = (reg & 1) ? 0x80188018 : 0x80008000;
-		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += frameBufferTexture->Width/2 - 12/2;
-		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r; p += frameBufferTexture->Width/2 - 12/2;
-		*p++ = col_g; *p++ = col_g; p+=2; *p++ = col_r; *p++ = col_r;
 	}
 }
 
 static void draw_pico_ptr(void) {
-	lprintf("draw_pico_ptr\n");
+	//lprintf("FJTRUJY: draw_pico_ptr\n");
     unsigned char *p = (unsigned char *)g_screen_ptr;
     
     // only if pen enabled and for 8bit mode
-    if (pico_inp_mode == 0 || is16BitsAccurate()) return;
+    if (pico_inp_mode == 0 || is16Bits()) return;
     
     p += 512 * (pico_pen_y + PICO_PEN_ADJUST_Y);
     p += pico_pen_x + PICO_PEN_ADJUST_X;
@@ -170,21 +169,19 @@ void emuDrawerPrepareConfig(void) {
 }
 
 void emuDrawerUpdateConfig(void) {
-    if(!isPicoOptAlternativeRenderedEnabled()){	//Accurate (line) renderer.
+    if(is8BitsAccurate) {	//Accurate (line) renderer.
 		FrameBufferTextureVisibleOffsetX=0;	//Nothing to hide here.
 		FrameBufferTextureVisibleOffsetY=0;
 		FrameBufferTextureVisibleWidth=frameBufferTexture->Width;
 		FrameBufferTextureVisibleHeight=frameBufferTexture->Height;
-	}
-	else{	//8-bit fast (frame) renderer ((320+8)x(224+8+8), as directed by the comment within Draw2.h). Only the draw region will be shown on-screen (320x224 or 320x240).
+	} else {	//8-bit fast (frame) renderer ((320+8)x(224+8+8), as directed by the comment within Draw2.h). Only the draw region will be shown on-screen (320x224 or 320x240).
 		FrameBufferTextureVisibleOffsetX=8;
 
 		//Skip borders.
 		if(!(Pico.video.reg[1]&8)){	//NTSC.
 			FrameBufferTextureVisibleOffsetY=8;	//NTSC has a shorter screen than PAL has.
 			FrameBufferTextureVisibleHeight=224;
-		}
-		else{	//PAL
+		} else {	//PAL
 			FrameBufferTextureVisibleOffsetY=0;
 			FrameBufferTextureVisibleHeight=240;
 		}
@@ -195,7 +192,7 @@ void emuDrawerUpdateConfig(void) {
 }
 
 void emuDrawerShowInfo(const char *fps, const char *notice, int lagging_behind) {
-	lprintf("blit\n");
+	//lprintf("FJTRUJY: blit\n");
     int megaCDEnabled = PicoAHW & PAHW_MCD;
     int emulationEnabled = PicoAHW & PAHW_PICO;
 
@@ -215,7 +212,7 @@ void emuDrawerShowInfo(const char *fps, const char *notice, int lagging_behind) 
         draw_pico_ptr();
     }
 		
-	if(is8BitsConfig()) {
+	if(!is16Bits()) {
         blitscreen_clut();
     }
 

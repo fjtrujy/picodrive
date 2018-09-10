@@ -53,10 +53,6 @@ int isPicoOptMCDCDDAEnabled(void) {
     return (PicoOpt & POPT_EN_MCD_CDDA);
 }
 
-int isPicoOptAlternativeRenderedEnabled(void) {
-    return (PicoOpt & POPT_ALT_RENDERER);
-}
-
 int isPicoOptStereoEnabled(void) {
     return (PicoOpt & POPT_EN_STEREO);
 }

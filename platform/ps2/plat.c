@@ -91,7 +91,7 @@ void plat_munmap(void *ptr, size_t size) {
 }
 
 void plat_video_menu_enter(int is_rom_loaded) {
-    lprintf("Plat Video Menu Enter\n");
+    //lprintf("FJTRUJY: Plat Video Menu Enter\n");
     // We need to re-create the FrameBufferTexture to refresh the content
     deinitFrameBufferTexture();
     initFrameBufferTexture();
@@ -101,7 +101,7 @@ void plat_video_menu_enter(int is_rom_loaded) {
 }
 
 void plat_video_menu_begin(void) {
-    lprintf("Plat Video Menu Begin\n");
+    //lprintf("FJTRUJY: Plat Video Menu Begin\n");
     resetFrameBufferTexture();
     clearGSGlobal();
     clearFrameBufferTexture();
@@ -109,7 +109,7 @@ void plat_video_menu_begin(void) {
 }
 
 void plat_video_menu_end(void) {
-    lprintf("Plat Video Menu End\n");
+    //lprintf("FJTRUJY: Plat Video Menu End\n");
     syncFrameBufferChache();
     clearFrameBufferTexture();
 
@@ -201,7 +201,7 @@ void plat_status_msg_busy_first(const char *msg) {
 void plat_update_volume(int has_changed, int is_up) {}
 
 void plat_debug_cat(char *str) {
-    strcat(str, is16BitsAccurate() ? "hard clut\n" : "soft clut\n");    //TODO: is this valid for this port?
+    strcat(str, is16Bits() ? "hard clut\n" : "soft clut\n");    //TODO: is this valid for this port?
 }
 
 const char *plat_get_credits(void) {

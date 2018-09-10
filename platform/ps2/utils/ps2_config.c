@@ -6,6 +6,7 @@
 
 #include "ps2_config.h"
 #include "../../common/emu.h"
+#include <pico/pico_int.h>
 
 // #define EOPT_EN_SRAM      (1<<0)  -----> 0x1     --------> 1
 // #define EOPT_SHOW_FPS     (1<<1)  -----> 0x2     --------> 2
@@ -29,7 +30,21 @@
 // #define EOPT_WIZ_TEAR_FIX (1<<19) -----> 0x80000 --------> 524288
 // #define EOPT_EXT_FRMLIMIT (1<<20) -----> 0x100000--------> 1048576 // no internal frame limiter (limited by snd, etc)
 
+const char *renderer_names_[] = { "16bit accurate", " 8bit accurate", "     8bit fast", NULL };
+const char *renderer_names32x_[] = { "accurate", "faster  ", "fastest ", NULL };
+const char **renderer_names = renderer_names_;
+const char **renderer_names32x = renderer_names32x_;
+enum renderer_types { RT_16BIT, RT_8BIT_ACC, RT_8BIT_FAST, RT_COUNT };
+
 // PUBLIC METHODS
+
+int get_renderer(void) {
+	if (PicoAHW & PAHW_32X) {
+        return currentConfig.renderer32x;
+    } else {
+		return currentConfig.renderer;
+    }
+}
 
 int currentEmulationOpt(void) {
     return currentConfig.EmuOpt;
@@ -43,14 +58,16 @@ int isSoundEnabled(void) {
     return (currentConfig.EmuOpt & EOPT_EN_SOUND);
 }
 
-int is8BitsConfig(void) {
-    int is8Bit = !(currentConfig.EmuOpt & EOPT_16BPP);
-    // lprintf("is8BitConfig\n");
-    return is8Bit;
+int is8BitsAccurate(void) {
+    return (get_renderer() == RT_8BIT_ACC);
 }
 
-int is16BitsAccurate(void) {
-    return (currentConfig.EmuOpt & EOPT_16BPP);
+int is8bitsFast(void) {
+    return (get_renderer() == RT_8BIT_FAST);
+}
+
+int is16Bits(void) {
+    return (get_renderer() == RT_16BIT || (PicoAHW & PAHW_32X));
 }
 
 int isCDLedsEnabled(void) {
@@ -67,16 +84,26 @@ int isVSYNCModeEnabled(void) {
 
 void prepareDefaultConfig(void) {
     defaultConfig.EmuOpt = EOPT_EN_SRAM | EOPT_EN_SOUND | EOPT_GZIP_SAVES | EOPT_MMUHACK | EOPT_CONFIRM_SAVE | EOPT_EN_CD_LEDS;
+    defaultConfig.renderer = RT_8BIT_FAST; // for now is just working with 8bit fast
+    defaultConfig.renderer32x = RT_8BIT_FAST;
 }
 
 void updateEmulationOpt(int newEmuOpt) {
     currentConfig.EmuOpt = newEmuOpt;
 }
 
-void set16BtisConfig(void) {
-    currentConfig.EmuOpt |= EOPT_16BPP;
-}
-
-void set8BtisConfig(void) {
-    currentConfig.EmuOpt &= ~EOPT_16BPP;
+void change_renderer(int diff) {
+	int *r;
+	if (PicoAHW & PAHW_32X) {
+        r = &currentConfig.renderer32x;
+    } else {
+        r = &currentConfig.renderer;
+    }
+		
+	*r += diff;
+	if (*r >= RT_COUNT) {
+        *r = 0;
+    } else if (*r < 0) {
+        *r = RT_COUNT - 1;
+    }
 }

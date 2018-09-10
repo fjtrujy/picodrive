@@ -5,16 +5,17 @@ int currentEmulationOpt(void);
 
 int isShowFPSEnabled(void);
 int isSoundEnabled(void);
-int is8BitsConfig(void);
-int is16BitsAccurate(void);
+int is8BitsAccurate(void);
+int is8bitsFast(void);
+int is16Bits(void);
 int isCDLedsEnabled(void);
 int isVSYNCEnabled(void);
 int isVSYNCModeEnabled(void);
+int get_renderer(void);
 
 void updateEmulationOpt(int newEmuOpt);
 
 void prepareDefaultConfig(void);
-void set16BtisConfig(void);
-void set8BtisConfig(void);
+void change_renderer(int diff);
 
 #endif //PS2_CONFIG_H

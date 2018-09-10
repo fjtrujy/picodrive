@@ -1,7 +1,15 @@
-// (c) Copyright 2007 notaz, All rights reserved.
-// Free for non-commercial use.
-
-// For commercial use, separate licencing terms must be obtained.
+/*
+ * (c) Copyright 2006-2010 notaz, All rights reserved.
+ *
+ * For performance reasons 3 renderers are exported for both MD and 32x modes:
+ * - 16bpp line renderer
+ * - 8bpp line renderer (slightly faster)
+ * - 8bpp tile renderer
+ * In 32x mode:
+ * - 32x layer is overlayed on top of 16bpp one
+ * - line internal one done on PicoDraw2FB, then mixed with 32x
+ * - tile internal one done on PicoDraw2FB, then mixed with 32x
+ */
 
 #include "plat_ps2.h"
 
@@ -45,7 +53,7 @@ static int sound_thread_id = -1;
 static unsigned char sound_thread_stack[0xA00] ALIGNED(128);
 
 static void ps2_SetAudioFormat(unsigned int rate) {
-	lprintf("ps2_SetAudioFormat\n");
+	//lprintf("FJTRUJY: ps2_SetAudioFormat\n");
     struct audsrv_fmt_t AudioFmt;
     
     AudioFmt.bits = 16;
@@ -56,7 +64,7 @@ static void ps2_SetAudioFormat(unsigned int rate) {
 }
 
 static void sound_thread(void *args) {
-	lprintf("sound_thread\n");
+	//lprintf("FJTRUJY: sound_thread\n");
 	while (!sound_thread_exit)
 	{
 		if(sound_thread_stop){
@@ -75,7 +83,7 @@ static void sound_thread(void *args) {
 
 		audsrv_wait_audio(samples_block*2);
 
-		lprintf("sthr: got data: %i\n", samples_made - samples_done);
+		// lprintf("sthr: got data: %i\n", samples_made - samples_done);
 
 		audsrv_play_audio((void*)snd_playptr, samples_block*2);
 
@@ -92,12 +100,12 @@ static void sound_thread(void *args) {
 		}
 	}
 
-	lprintf("sthr: exit\n");
+	// lprintf("sthr: exit\n");
 	ExitDeleteThread();
 }
 
 static void ps2_soundInit(void) {
-	lprintf("sound_init\n");
+	//lprintf("FJTRUJY: sound_init\n");
 	int ret;
 	ee_thread_t thread;
 
@@ -121,7 +129,7 @@ static void ps2_soundInit(void) {
 }
 
 static void writeSound(int len) {
-	lprintf("writeSound\n");
+	//lprintf("FJTRUJY: writeSound\n");
 	if (isPicoOptStereoEnabled()) len<<=1;
 
 	PsndOut += len;
@@ -190,7 +198,7 @@ static void ps2_soundPrepare(void) {
         if (!mp3_init_done) {
             int error;
             error = mp3_init();
-            lprintf("Que mierda me han devuelto %i\n", error);
+            //lprintf("FJTRUJY: Que mierda me han devuelto %i\n", error);
             mp3_init_done = 1;
             if (error) { engineState = PGS_Menu; return; }
         }
@@ -220,7 +228,7 @@ static int EmuScanSlow8(unsigned int num) {
 }
 
 static int EmuScanSlow16(unsigned int num) {
-	lprintf("EmuScanSlow16\n");
+	// lprintf("FJTRUJY: EmuScanSlow16\n");
 	DrawLineDest = (unsigned short int *)g_screen_ptr + num*frameBufferTexture->Width;
 
 	return 0;
@@ -231,14 +239,13 @@ static void setupFrameBufferTextureForEmulation(void) {
 }
 
 static void initFrameBufferTextureForEmulation(void) {
-	if(is8BitsConfig()){
+	if(is16Bits()) {
+		//16-bit mode (No CLUT).
+		frameBufferTexture->Clut=NULL;
+	} else {
 		//8-bit mode
 		frameBufferTexture->Clut=memalign(128, gsKit_texture_size_ee(16, 16, frameBufferTexture->ClutPSM));
 		frameBufferTexture->VramClut=gsKit_vram_alloc(gsGlobal, gsKit_texture_size(16, 16, frameBufferTexture->ClutPSM), GSKIT_ALLOC_USERBUFFER);
-	}
-	else{
-		//16-bit mode (No CLUT).
-		frameBufferTexture->Clut=NULL;
 	}
 
 	gsKit_setup_tbw(frameBufferTexture);
@@ -249,7 +256,6 @@ static void initFrameBufferTextureForEmulation(void) {
 
 //Note: While this port has the CAN_HANDLE_240_LINES setting set, it seems like Picodrive will draw mandatory borders (of 320x8). Cutting them off by playing around with the pointers (see code below) should be harmless...
 static void vidResetMode(void) {
-	lprintf("vidResetMode: vmode: %s, renderer: %s (%u-bit mode)\n", (Pico.video.reg[1])&8?"PAL":"NTSC", isPicoOptAlternativeRenderedEnabled()?"Fast":"Accurate", is8BitsConfig()?8:16);
     deinitFrameBufferTexture();
     
 	clearGSGlobal();
@@ -257,35 +263,49 @@ static void vidResetMode(void) {
 	// bilinear filtering for the PSP and PS2.
 	frameBufferTexture->Filter=(currentConfig.scaling)?GS_FILTER_LINEAR:GS_FILTER_NEAREST;
 
-	if(!isPicoOptAlternativeRenderedEnabled()){	//Accurate (line) renderer.
+	if (is8BitsAccurate() || is16Bits()) {
+		setPicoOptNormalRendered();
+
+		lprintf("FJTRUJY: Accurate line renderer\n");
 		frameBufferTexture->Width=SCREEN_WIDTH;
+		// frameBufferTexture->Height=SCREEN_HEIGHT;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
 		frameBufferTexture->Height=(!(Pico.video.reg[1]&8))?224:240;	//NTSC = 224 lines, PAL = 240 lines. Only the draw region will be shown on-screen (320x224 or 320x240).
+		// frameBufferTexture->Height=240;
 
-		if(is8BitsConfig()){
-			//8-bit mode
-			PicoDrawSetColorFormat(2);
-			PicoScanBegin = &EmuScanSlow8;
-			PicoScanEnd = NULL;
-
-			frameBufferTexture->PSM=GS_PSM_T8;
-			frameBufferTexture->ClutPSM=GS_PSM_CT16;
-		}
-		else{
+		if (is16Bits()) {
+			lprintf("FJTRUJY: Accurate 16bits\n");
 			//16-bit mode
-			PicoDrawSetColorFormat(1);
+			PicoDrawSetOutFormat(PDF_RGB555, 0);
+			PicoDrawSetOutBuf(g_screen_ptr, g_screen_width);
 			PicoScanBegin = &EmuScanSlow16;
 			PicoScanEnd = NULL;
 
 			frameBufferTexture->PSM=GS_PSM_CT16;
 			//No CLUT.
+		} else {
+			lprintf("FJTRUJY: Accurate 8bits\n");
+			// //8-bit mode
+			PicoDrawSetOutFormat(PDF_8BIT, 0);
+			PicoDrawSetOutBuf(g_screen_ptr, g_screen_width);
+			// PicoScanBegin = &EmuScanSlow8;
+			// PicoScanEnd = NULL;
+
+			frameBufferTexture->PSM=GS_PSM_T8;
+			frameBufferTexture->ClutPSM=GS_PSM_CT16;
 		}
-	} else {	//8-bit fast (frame) renderer ((320+8)x(224+8+8), as directed by the comment within Draw2.h). Only the draw region will be shown on-screen (320x224 or 320x240).
+
+	} else { 
+		//8-bit fast (frame) renderer ((320+8)x(224+8+8), as directed by the comment within Draw2.h). Only the draw region will be shown on-screen (320x224 or 320x240).
+		setPicoOptAlternativeRendered();
+		lprintf("FJTRUJY: 8bits fast\n");
+		PicoDrawSetOutFormat(PDF_NONE, 0);
 		frameBufferTexture->Width=328;
 		frameBufferTexture->Height=240;
 
 		frameBufferTexture->PSM=GS_PSM_T8;
 		frameBufferTexture->ClutPSM=GS_PSM_CT16;
 	}
+
 	setupFrameBufferTextureForEmulation();
 
 	//update drawer config
@@ -297,45 +317,26 @@ static void vidResetMode(void) {
 	Pico.m.dirtyPal = 1;	//Since the VRAM for the CLUT has been reallocated, reupload it.
 }
 
-static void toogleRendererPicoConfig(int is_next, int force_16bpp)
-{
-	if (force_16bpp) {
-        setPicoOptNormalRendered();
-        set16BtisConfig();
-    }
-    /* alt, 16bpp, 8bpp */
-    else if (isPicoOptAlternativeRenderedEnabled()) {
-        setPicoOptNormalRendered();
-        if (is_next)
-            set16BtisConfig();
-    } else if (is8BitsConfig()) {
-        if (is_next)
-            setPicoOptAlternativeRendered();
-        else
-            set16BtisConfig();
-    } else {
-        set8BtisConfig();
-        if (!is_next)
-            setPicoOptAlternativeRendered();
-    }
+static void toogleRendererPicoConfig(int is_next) {
+	change_renderer(is_next);
 }
 
 static void showRendererStatusMessage(void) {
-	if (isPicoOptAlternativeRenderedEnabled()) {
-        emu_status_msg(" 8bit fast renderer");
+	if (is16Bits()) {
+		emu_status_msg("16bit accurate renderer");
+		//lprintf("FJTRUJY: 16bit accurate renderer\n");
+	} else if (is8bitsFast()) {
+		emu_status_msg(" 8bit fast renderer");
 		lprintf("8bit fast renderer\n");
-    } else if (is16BitsAccurate()) {
-        emu_status_msg("16bit accurate renderer");
-		lprintf("16bit accurate renderer\n");
-    } else {
-        emu_status_msg(" 8bit accurate renderer");
-		lprintf("8bit accurate renderer");
-    }
+	} else {
+		emu_status_msg(" 8bit accurate renderer");
+		//lprintf("FJTRUJY: 8bit accurate renderer");
+	}
 }
 
-static void toogleRenderer(int is_next, int force_16bpp, int is_menu) {
+static void toogleRenderer(int is_next, int is_menu) {
 	
-    toogleRendererPicoConfig(is_next, force_16bpp);
+    toogleRendererPicoConfig(is_next);
     
 	// If we are in the menu, then we don't need to reset the video mode
 	if (is_menu)
@@ -357,41 +358,41 @@ static void deinitFrameBufferTextureForEmulation(void) {
 // All the PEMU, EMU, PLAT, ARM Methods
 
 void spend_cycles(int c) {
-	lprintf("spend_cycles\n");
+	//lprintf("FJTRUJY: spend_cycles\n");
     delayCycles(c);
 }
 
 void emu_video_mode_change(int start_line, int line_count, int is_32cols){
-    lprintf("emu_video_mode_change\n");
+    //lprintf("FJTRUJY: emu_video_mode_change\n");
 	resetFrameBufferTexture();
 }
 
-void plat_video_toggle_renderer(int is_next, int force_16bpp, int is_menu) {
-	lprintf("plat_video_toggle_renderer\n");
-	toogleRenderer(is_next, force_16bpp, is_menu);
+void plat_video_toggle_renderer(int is_next, int is_menu) {
+	//lprintf("FJTRUJY: plat_video_toggle_renderer\n");
+	toogleRenderer(is_next, is_menu);
 }
 
 void pemu_prep_defconfig(void) {
-	lprintf("pemu_prep_defconfig\n");
+	//lprintf("FJTRUJY: pemu_prep_defconfig\n");
     prepareDefaultConfig();
 }
 
 void pemu_validate_config(void) {
-	lprintf("pemu_validate_config\n");
+	//lprintf("FJTRUJY: pemu_validate_config\n");
 }
 
 void pemu_finalize_frame(const char *fps, const char *notice_msg) {
-	lprintf("pemu_finalize_frame\n");
+	//lprintf("FJTRUJY: pemu_finalize_frame\n");
     emuDrawerShowInfo(fps, notice_msg, 0);
 }
 
 void pemu_sound_start(void) {
-	lprintf("pemu_sound_start\n");
+	//lprintf("FJTRUJY: pemu_sound_start\n");
 	ps2_soundStart();
 }
 
 void pemu_sound_stop(void) {
-	lprintf("pemu_sound_stop\n");
+	//lprintf("FJTRUJY: pemu_sound_stop\n");
 	ps2_soundStop();
 }
 
@@ -401,14 +402,12 @@ void pemu_sound_wait(void) {
 }
 
 void pemu_forced_frame(int opts) {
-	lprintf("pemu_forced_frame\n");
+	//lprintf("FJTRUJY: pemu_forced_frame\n");
     int po_old = currentPicoOpt();
     int eo_old = currentEmulationOpt();
     
-    setPicoOptNormalRendered();
 	setPicoOptAccSprites();
 	picoOptUpdateOpt(opts);
-    set16BtisConfig();
     
     vidResetMode();
     
@@ -419,7 +418,7 @@ void pemu_forced_frame(int opts) {
 }
 
 void pemu_loop_prep(void) {
-	lprintf("pemu_loop_prep\n");
+	//lprintf("FJTRUJY: pemu_loop_prep\n");
 	deinitFrameBufferTextureForEmulation();
 	emuDrawerPrepareConfig();
 
@@ -429,7 +428,7 @@ void pemu_loop_prep(void) {
 }
 
 void pemu_loop_end(void) {
-	lprintf("pemu_loop_end\n");
+	//lprintf("FJTRUJY: pemu_loop_end\n");
     ps2_soundStop();
     resetFrameBufferTexture();
 }
