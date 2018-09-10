@@ -401,7 +401,7 @@ void pemu_sound_wait(void) {
 	ps2_soundWait();
 }
 
-void pemu_forced_frame(int opts) {
+void pemu_forced_frame(int opts, int no_scale) {
 	//lprintf("FJTRUJY: pemu_forced_frame\n");
     int po_old = currentPicoOpt();
     int eo_old = currentEmulationOpt();
