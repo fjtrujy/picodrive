@@ -268,44 +268,44 @@ void menu_init(void)
 		}
 	}
 
-	// // load custom font and selector (stored as 1st symbol in font table)
-	// emu_make_path(buff, "skin/font.png", sizeof(buff));
-	// readpng(menu_font_data, buff, READPNG_FONT);
-	// // default selector symbol is '>'
-	// memcpy(menu_font_data, menu_font_data + ((int)'>') * me_mfont_w * me_mfont_h / 2,
-	// 	me_mfont_w * me_mfont_h / 2);
-	// emu_make_path(buff, "skin/selector.png", sizeof(buff));
-	// readpng(menu_font_data, buff, READPNG_SELECTOR);
+	// load custom font and selector (stored as 1st symbol in font table)
+	emu_make_path(buff, "skin/font.png", sizeof(buff));
+	readpng(menu_font_data, buff, READPNG_FONT);
+	// default selector symbol is '>'
+	memcpy(menu_font_data, menu_font_data + ((int)'>') * me_mfont_w * me_mfont_h / 2,
+		me_mfont_w * me_mfont_h / 2);
+	emu_make_path(buff, "skin/selector.png", sizeof(buff));
+	readpng(menu_font_data, buff, READPNG_SELECTOR);
 
-    // // load custom colors
-    // emu_make_path(buff, "skin/skin.txt", sizeof(buff));
-    // f = fopen(buff, "r");
-    // if (f != NULL)
-    // {
-    //     lprintf("found skin.txt\n");
-    //     while (!feof(f))
-    //     {
-	// 		if (fgets(buff, sizeof(buff), f) == NULL)
-	// 			break;
-    //         if (buff[0] == '#'  || buff[0] == '/')  continue; // comment
-    //         if (buff[0] == '\r' || buff[0] == '\n') continue; // empty line
-    //         if (strncmp(buff, "text_color=", 11) == 0)
-    //         {
-    //             int tmp = parse_hex_color(buff+11);
-    //             if (tmp >= 0) menu_text_color = tmp;
-    //             else lprintf("skin.txt: parse error for text_color\n");
-    //         }
-    //         else if (strncmp(buff, "selection_color=", 16) == 0)
-    //         {
-    //             int tmp = parse_hex_color(buff+16);
-    //             if (tmp >= 0) menu_sel_color = tmp;
-    //             else lprintf("skin.txt: parse error for selection_color\n");
-    //         }
-    //         else
-    //             lprintf("skin.txt: parse error: %s\n", buff);
-    //     }
-    //     fclose(f);
-    // }
+    // load custom colors
+    emu_make_path(buff, "skin/skin.txt", sizeof(buff));
+    f = fopen(buff, "r");
+    if (f != NULL)
+    {
+        lprintf("found skin.txt\n");
+        while (!feof(f))
+        {
+			if (fgets(buff, sizeof(buff), f) == NULL)
+				break;
+            if (buff[0] == '#'  || buff[0] == '/')  continue; // comment
+            if (buff[0] == '\r' || buff[0] == '\n') continue; // empty line
+            if (strncmp(buff, "text_color=", 11) == 0)
+            {
+                int tmp = parse_hex_color(buff+11);
+                if (tmp >= 0) menu_text_color = tmp;
+                else lprintf("skin.txt: parse error for text_color\n");
+            }
+            else if (strncmp(buff, "selection_color=", 16) == 0)
+            {
+                int tmp = parse_hex_color(buff+16);
+                if (tmp >= 0) menu_sel_color = tmp;
+                else lprintf("skin.txt: parse error for selection_color\n");
+            }
+            else
+                lprintf("skin.txt: parse error: %s\n", buff);
+        }
+        fclose(f);
+    }
 }
 
 
