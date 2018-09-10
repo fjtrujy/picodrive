@@ -148,7 +148,7 @@ static void in_ps2_probe(void)
     InitializePad(1, 0);
     
     in_register(IN_PREFIX "PS2 pad", IN_DRVID_PS2, -1, (void *)1,
-                IN_PS2_NBUTTONS, 1);
+                IN_PS2_NBUTTONS, in_ps2_keys, 1);
 }
 
 static void in_ps2_free(void *drv_data)
@@ -231,7 +231,7 @@ static const struct {
 
 #define KEY_PBTN_MAP_SIZE (sizeof(key_pbtn_map) / sizeof(key_pbtn_map[0]))
 
-static int in_ps2_menu_translate(int keycode)
+static int in_ps2_menu_translate(void *drv_data, int keycode)
 {
     int i;
     if (keycode < 0)
@@ -250,30 +250,6 @@ static int in_ps2_menu_translate(int keycode)
     }
     
     return 0;
-}
-
-static int in_ps2_get_key_code(const char *key_name)
-{
-    int i;
-    
-    for (i = 0; i < IN_PS2_NBUTTONS; i++) {
-        const char *k = in_ps2_keys[i];
-        if (k != NULL && strcasecmp(k, key_name) == 0)
-            return i;
-    }
-    
-    return -1;
-}
-
-static const char *in_ps2_get_key_name(int keycode)
-{
-    const char *name = NULL;
-    if (keycode >= 0 && keycode < IN_PS2_NBUTTONS)
-        name = in_ps2_keys[keycode];
-    if (name == NULL)
-        name = "Unkn";
-    
-    return name;
 }
 
 static const struct {
@@ -367,8 +343,6 @@ void in_ps2_init(void *vdrv)
     drv->get_def_binds = in_ps2_get_def_binds;
     drv->clean_binds = in_ps2_clean_binds;
     drv->menu_translate = in_ps2_menu_translate;
-    drv->get_key_code = in_ps2_get_key_code;
-    drv->get_key_name = in_ps2_get_key_name;
     drv->update_keycode = in_ps2_update_keycode;
 }
 
