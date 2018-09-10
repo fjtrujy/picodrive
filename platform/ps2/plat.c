@@ -228,7 +228,7 @@ void *plat_mremap(void *ptr, size_t oldsize, size_t newsize)
 }
 
 const char *plat_get_credits(void) {
-    return "PicoDrive v" VERSION " (c) notaz, 06-09\n\n"
+    return "PicoDrive v" VERSION " (c) notaz, 06-10\n\n"
     "Returned life by fjtrujy (thanks sp193)\n/n"
     "Credits:\n"
     "fDave: Cyclone 68000 core,\n"
