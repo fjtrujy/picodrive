@@ -56,6 +56,9 @@ If you are on 1.5, there is a separate KXploited version for it.
 Copy SIS and some ROMs to any directory in your memory stick, and install the SIS.
 Then load a ROM and enjoy! ROMs can be in .smd or .bin format and can be zipped.
 #endif
+#ifdef PANDORA
+Just copy the .pnd to <sd card>/pandora/menu or <sd card>/pandora/desktop.
+#endif
 #ifndef UIQ
 
 This emulator has lots of options with various tweaks (for improved speed mostly),
@@ -72,7 +75,12 @@ To play any game, you need BIOS files. These files must be copied to
 #ifdef UIQ
 D:\other\PicoDrive\ directory.
 #else
+#ifdef PANDORA
+<sd card>/pandora/appdata/PicoDrive/ directory
+(if you run PicoDrive once it will create that directory for you).
+#else
 the same directory as PicoDrive files.
+#endif
 #endif
 Files can be named as follows:
 
@@ -85,8 +93,14 @@ The game must be dumped to ISO/CSO+MP3/WAV or CUE+BIN format. When using
 CUE/BIN, you must load .cue file from the menu, or else the emu will not find
 audio tracks.
 CUE/BIN usually takes a lot of space, so it can be converted to cue/cso/mp3 by
+#ifdef PANDORA
+using bin_to_cso_mp3 tool, which can be downloaded from:
+http://notaz.gp2x.de/releases/misc/bin_to_cso_mp3.zip
+See readme in the bin_to_cso_mp3/ directory for details.
+#else
 using bin_to_cso_mp3 tool, which is included with the emulator. See readme in
 the bin_to_cso_mp3/ directory for details.
+#endif
 
 ISO+mp3 files can be named similarly as for other emus.
 Here are some examples:
@@ -234,6 +248,7 @@ Restores all options (except controls) to defaults.
 Display options
 ---------------
 
+#ifndef PANDORA
 @@1. "Renderer"
 #ifdef GP2X
 8bit fast:
@@ -257,6 +272,7 @@ is much faster, because it draws the whole frame at a time, instead of doing it
 line by line, like the accurate one does. But because of the way it works it
 can't render any mid-frame image changes (raster effects), so it is useful only
 for some games.
+#endif
 #endif
 
 #ifdef GP2X
@@ -332,7 +348,7 @@ Color gamma can be adjusted with this.
 This can be used to reduce unwanted "ghosting" effect for dark games, by making
 black pixels brighter. Use in conjunction with "gamma adjustment" for more effect.
 
-@@1. "Wait for vsync"
+@@1. "Wait for v-sync"
 Wait for the screen to finish updating before switching to next frame, to avoid tearing.
 There are 3 options:
 * never: don't wait for vsync.
@@ -347,6 +363,9 @@ Scale the image up, but keep 4:3 aspect, by adding black borders.
 
 @@1. "Set to fullscreen"
 Adjust the resizing options to make the game image fullscreen.
+#endif
+#ifdef PANDORA
+To be updated..
 #endif
 
 
@@ -456,21 +475,14 @@ Key configuration
 
 Select "Configure controls" from the main menu. Then select "Player 1" and you will
 see two columns. The left column lists names of Genesis/MD controller buttons, and
-#ifdef GP2X
-the right GP2X ones, which are assigned to them. If you bind 2 different GP2X buttons
+the right column your handheld ones, which are assigned.
+#ifndef PANDORA
+If you bind 2 different buttons to the same action, you will get a combo
+(which means that you will have to press both buttons for that action to happen).
 #endif
-#ifdef GIZ
-the right Giz ones, which are assigned to them. If you bind 2 different Giz buttons
-#endif
-#ifdef PSP
-the right PSP ones, which are assigned to them. If you bind 2 different PSP buttons
-#endif
-to the same action, you will get a combo (which means that you will have to press
-both buttons for that action to happen).
 
 There is also option to enable 6 button pad (will allow you to configure XYZ
 buttons), and an option to set turbo rate (in Hz) for turbo buttons.
-#endif
 #ifndef UIQ
 
 
@@ -615,6 +627,7 @@ Additional thanks
 * Haze for his research (http://haze.mameworld.info).
 * Lordus, Exophase and Rokas for various ideas.
 * Nemesis for his YM2612 research.
+* Many posters at spritesmind.net forums valuable information.
 * Mark and Jean-loup for zlib library.
 * ketchupgun for the skin.
 #ifdef GP2X
@@ -637,13 +650,25 @@ Additional thanks
   (http://www.inf.u-szeged.hu/symbian-gcc/) for their updated pre-SymbianOS9
   compile tools.
 * AnotherGuest for all his Symbian stuff and support.
-* Inder for the icons.
 #endif
+* Inder for some graphics.
 * Anyone else I forgot. You know who you are.
 
 
 Changelog
 ---------
+1.80beta2
+  * Pandora: updated documentation.
+
+1.80beta1
+  + Added pandora port.
+  * Internal refactoring for 32x/SMS support.
+  * Move mapper database to external file.
+  + Added preliminary SMS emulation.
+  + Added emulation of 32x peripherals including VDP. More work is needed here.
+  + ARM: Added new SH2 recompiler for 32x. Some unification with SVP one.
+  - Disabled most of the above bacause I'm not yet happy with the results.
+
 1.56
   * Changed sync in Sega CD emulation again. Should fix games that
     broke after changes in 1.51a.
