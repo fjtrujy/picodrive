@@ -9,6 +9,7 @@
 
 #include "pico_int.h"
 #include "../zlib/zlib.h"
+#include "../cpu/debug.h"
 #include "../unzip/unzip.h"
 #include "../unzip/unzip_stream.h"
 
@@ -438,6 +439,9 @@ static unsigned char *PicoCartAlloc(int filesize, int is_sms)
     if (filesize > (1 << s))
       s++;
     rom_alloc_size = 1 << s;
+    // be sure we can cover all address space
+    if (rom_alloc_size < 0x10000)
+      rom_alloc_size = 0x10000;
   }
   else {
     // make alloc size at least sizeof(mcd_state),
@@ -555,6 +559,7 @@ int PicoCartInsert(unsigned char *rom, unsigned int romsize, const char *carthw_
     PicoCartUnloadHook();
     PicoCartUnloadHook = NULL;
   }
+  pdb_cleanup();
 
   PicoAHW &= PAHW_MCD|PAHW_SMS;
 
@@ -587,6 +592,17 @@ int PicoCartInsert(unsigned char *rom, unsigned int romsize, const char *carthw_
   else
     PicoPower();
 
+  return 0;
+}
+
+int PicoCartResize(int newsize)
+{
+  void *tmp = plat_mremap(Pico.rom, rom_alloc_size, newsize);
+  if (tmp == NULL)
+    return -1;
+
+  Pico.rom = tmp;
+  rom_alloc_size = newsize;
   return 0;
 }
 

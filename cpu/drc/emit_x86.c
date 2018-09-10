@@ -1,6 +1,6 @@
 /*
  * note:
- *  temp registers must be eax-edx due to use of SETcc.
+ *  temp registers must be eax-edx due to use of SETcc and r/w 8/16.
  * note about silly things like emith_eor_r_r_r:
  *  these are here because the compiler was designed
  *  for ARM as it's primary target.
@@ -63,10 +63,10 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 #define EMIT_SIB(scale,index,base) \
 	EMIT(((scale)<<6) | ((index)<<3) | (base), u8)
 
-#define EMIT_OP_MODRM(op,mod,r,rm) { \
+#define EMIT_OP_MODRM(op,mod,r,rm) do { \
 	EMIT_OP(op); \
 	EMIT_MODRM(mod, r, rm); \
-}
+} while (0)
 
 #define JMP8_POS(ptr) \
 	ptr = tcache_ptr; \
@@ -180,12 +180,17 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 	EMIT(imm, u32); \
 } while (0)
 
-// 2 - adc, 3 - sbb
 #define emith_add_r_imm(r, imm) \
 	emith_arith_r_imm(0, r, imm)
 
 #define emith_or_r_imm(r, imm) \
 	emith_arith_r_imm(1, r, imm)
+
+#define emith_adc_r_imm(r, imm) \
+	emith_arith_r_imm(2, r, imm)
+
+#define emith_sbc_r_imm(r, imm) \
+	emith_arith_r_imm(3, r, imm) // sbb
 
 #define emith_and_r_imm(r, imm) \
 	emith_arith_r_imm(4, r, imm)
@@ -411,17 +416,36 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 	} \
 } while (0)
 
+#define is_abcdx(r) (xAX <= (r) && (r) <= xDX)
+
 #define emith_read_r_r_offs(r, rs, offs) \
 	emith_deref_op(0x8b, r, rs, offs)
 
 #define emith_write_r_r_offs(r, rs, offs) \
 	emith_deref_op(0x89, r, rs, offs)
 
-#define emith_read8_r_r_offs(r, rs, offs) \
-	emith_deref_op(0x8a, r, rs, offs)
+// note: don't use prefixes on this
+#define emith_read8_r_r_offs(r, rs, offs) do { \
+	int r_ = r; \
+	if (!is_abcdx(r)) \
+		r_ = rcache_get_tmp(); \
+	emith_deref_op(0x8a, r_, rs, offs); \
+	if ((r) != r_) { \
+		emith_move_r_r(r, r_); \
+		rcache_free_tmp(r_); \
+	} \
+} while (0)
 
-#define emith_write8_r_r_offs(r, rs, offs) \
-	emith_deref_op(0x88, r, rs, offs)
+#define emith_write8_r_r_offs(r, rs, offs) do {\
+	int r_ = r; \
+	if (!is_abcdx(r)) { \
+		r_ = rcache_get_tmp(); \
+		emith_move_r_r(r_, r); \
+	} \
+	emith_deref_op(0x88, r_, rs, offs); \
+	if ((r) != r_) \
+		rcache_free_tmp(r_); \
+} while (0)
 
 #define emith_read16_r_r_offs(r, rs, offs) { \
 	EMIT(0x66, u8); /* operand override */ \
@@ -430,7 +454,7 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 
 #define emith_write16_r_r_offs(r, rs, offs) { \
 	EMIT(0x66, u8); \
-	emith_write16_r_r_offs(r, rs, offs) \
+	emith_write_r_r_offs(r, rs, offs); \
 }
 
 #define emith_ctx_read(r, offs) \
@@ -482,6 +506,12 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 	EMIT_PTR((u8 *)(ptr) + offs_, disp_ - offs_, u32); \
 } while (0)
 
+#define emith_jump_at(ptr, target) { \
+	u32 disp_ = (u32)(target) - ((u32)(ptr) + 5); \
+	EMIT_PTR(ptr, 0xe9, u8); \
+	EMIT_PTR((u8 *)(ptr) + 1, disp_, u32); \
+}
+
 #define emith_call(ptr) { \
 	u32 disp = (u32)(ptr) - ((u32)tcache_ptr + 5); \
 	EMIT_OP(0xe8); \
@@ -509,6 +539,11 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 	EMIT_OP_MODRM(0xff, 2, 4, CONTEXT_REG); \
 	EMIT(offs, u32); \
 }
+
+#define emith_push_ret()
+
+#define emith_pop_and_ret() \
+	emith_ret()
 
 #define EMITH_JMP_START(cond) { \
 	u8 *cond_ptr; \
@@ -539,13 +574,6 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 #define EMITH_SJMP3_MID EMITH_JMP3_MID
 #define EMITH_SJMP3_END EMITH_JMP3_END
 
-#define host_arg2reg(rd, arg) \
-	switch (arg) { \
-	case 0: rd = xAX; break; \
-	case 1: rd = xDX; break; \
-	case 2: rd = xCX; break; \
-	}
-
 #define emith_pass_arg_r(arg, reg) { \
 	int rd = 7; \
 	host_arg2reg(rd, arg); \
@@ -557,6 +585,15 @@ enum { xAX = 0, xCX, xDX, xBX, xSP, xBP, xSI, xDI };
 	host_arg2reg(rd, arg); \
 	emith_move_r_imm(rd, imm); \
 }
+
+#define host_instructions_updated(base, end)
+
+#define host_arg2reg(rd, arg) \
+	switch (arg) { \
+	case 0: rd = xAX; break; \
+	case 1: rd = xDX; break; \
+	case 2: rd = xCX; break; \
+	}
 
 /* SH2 drc specific */
 #define emith_sh2_drc_entry() { \

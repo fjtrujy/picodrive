@@ -4,7 +4,7 @@ typedef unsigned short u16;
 typedef unsigned int   u32;
 #endif
 
-#define DRC_TCACHE_SIZE         (512*1024)
+#define DRC_TCACHE_SIZE         (2*1024*1024)
 
 extern u8 tcache[DRC_TCACHE_SIZE];
 

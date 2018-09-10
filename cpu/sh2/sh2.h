@@ -35,8 +35,9 @@ typedef struct SH2_
 	int		irq_cycles;
 	void		*p_bios;	// convenience pointers
 	void		*p_da;
-	void		*p_sdram;
+	void		*p_sdram;	// 80
 	void		*p_rom;
+	unsigned int	pdb_io_csum[2];
 
 	// interpreter stuff
 	int		icount;		// cycles left in current timeslice
@@ -60,11 +61,16 @@ extern SH2 *sh2; // active sh2. XXX: consider removing
 int  sh2_init(SH2 *sh2, int is_slave);
 void sh2_finish(SH2 *sh2);
 void sh2_reset(SH2 *sh2);
-void sh2_irl_irq(SH2 *sh2, int level);
+void sh2_irl_irq(SH2 *sh2, int level, int nested_call);
 void sh2_internal_irq(SH2 *sh2, int level, int vector);
 void sh2_do_irq(SH2 *sh2, int level, int vector);
+void sh2_pack(const SH2 *sh2, unsigned char *buff);
+void sh2_unpack(SH2 *sh2, const unsigned char *buff);
 
 void sh2_execute(SH2 *sh2, int cycles);
+
+// regs, pending_int*, cycles, reserved
+#define SH2_STATE_SIZE ((24 + 2 + 2 + 12) * 4)
 
 // pico memhandlers
 // XXX: move somewhere else

@@ -224,12 +224,12 @@ static void p32x_reg_write8(u32 a, u32 d)
     case 3: // irq ctl
       if ((d & 1) && !(Pico32x.sh2irqi[0] & P32XI_CMD)) {
         Pico32x.sh2irqi[0] |= P32XI_CMD;
-        p32x_update_irls();
+        p32x_update_irls(0);
         SekEndRun(16);
       }
       if ((d & 2) && !(Pico32x.sh2irqi[1] & P32XI_CMD)) {
         Pico32x.sh2irqi[1] |= P32XI_CMD;
-        p32x_update_irls();
+        p32x_update_irls(0);
         SekEndRun(16);
       }
       return;
@@ -352,7 +352,7 @@ static void p32x_vdp_write8(u32 a, u32 d)
       Pico32x.pending_fb = d;
       // if we are blanking and FS bit is changing
       if (((r[0x0a/2] & P32XV_VBLK) || (r[0] & P32XV_Mx) == 0) && ((r[0x0a/2] ^ d) & P32XV_FS)) {
-        r[0x0a/2] ^= 1;
+        r[0x0a/2] ^= P32XV_FS;
 	Pico32xSwapDRAM(d ^ 1);
         elprintf(EL_32X, "VDP FS: %d", r[0x0a/2] & P32XV_FS);
       }
@@ -431,7 +431,7 @@ static void p32x_sh2reg_write8(u32 a, u32 d, int cpuid)
       Pico32x.sh2irq_mask[cpuid] = d & 0x8f;
       Pico32x.sh2_regs[0] &= ~0x80;
       Pico32x.sh2_regs[0] |= d & 0x80;
-      p32x_update_irls();
+      p32x_update_irls(1);
       return;
     case 5: // H count
       Pico32x.sh2_regs[4 / 2] = d & 0xff;
@@ -486,7 +486,7 @@ static void p32x_sh2reg_write16(u32 a, u32 d, int cpuid)
   return;
 
 irls:
-  p32x_update_irls();
+  p32x_update_irls(1);
 }
 
 // ------------------------------------------------------------------
@@ -950,7 +950,7 @@ static u32 sh2_read8_cs0(u32 a, int id)
   if (id == 1 && a < sizeof(Pico32xMem->sh2_rom_s))
     return Pico32xMem->sh2_rom_s[a ^ 1];
 
-  if ((a & 0x3ff00) == 0x4200) {
+  if ((a & 0x3fe00) == 0x4200) {
     d = Pico32xMem->pal[(a & 0x1ff) / 2];
     goto out_16to8;
   }
@@ -1004,7 +1004,7 @@ static u32 sh2_read16_cs0(u32 a, int id)
   if (id == 1 && a < sizeof(Pico32xMem->sh2_rom_s))
     return *(u16 *)(Pico32xMem->sh2_rom_s + a);
 
-  if ((a & 0x3ff00) == 0x4200) {
+  if ((a & 0x3fe00) == 0x4200) {
     d = Pico32xMem->pal[(a & 0x1ff) / 2];
     goto out;
   }
@@ -1329,7 +1329,7 @@ static void get_bios(void)
   // M68K ROM
   if (p32x_bios_g != NULL) {
     elprintf(EL_STATUS|EL_32X, "32x: using supplied 68k BIOS");
-    Byteswap(Pico32xMem->m68k_rom, p32x_bios_g, 0x100);
+    Byteswap(Pico32xMem->m68k_rom, p32x_bios_g, sizeof(Pico32xMem->m68k_rom));
   }
   else {
     // generate 68k ROM
@@ -1351,7 +1351,9 @@ static void get_bios(void)
 #endif
   }
   // fill remaining m68k_rom page with game ROM
-  memcpy(Pico32xMem->m68k_rom + 0x100, Pico.rom + 0x100, sizeof(Pico32xMem->m68k_rom) - 0x100);
+  memcpy(Pico32xMem->m68k_rom_bank + sizeof(Pico32xMem->m68k_rom),
+    Pico.rom + sizeof(Pico32xMem->m68k_rom),
+    sizeof(Pico32xMem->m68k_rom_bank) - sizeof(Pico32xMem->m68k_rom));
 
   // MSH2
   if (p32x_bios_m != NULL) {
@@ -1439,9 +1441,9 @@ void PicoMemSetup32x(void)
   // m68k_map_unmap(0x000000, 0x3fffff);
 
   // MD ROM area
-  rs = sizeof(Pico32xMem->m68k_rom);
-  cpu68k_map_set(m68k_read8_map,   0x000000, rs - 1, Pico32xMem->m68k_rom, 0);
-  cpu68k_map_set(m68k_read16_map,  0x000000, rs - 1, Pico32xMem->m68k_rom, 0);
+  rs = sizeof(Pico32xMem->m68k_rom_bank);
+  cpu68k_map_set(m68k_read8_map,   0x000000, rs - 1, Pico32xMem->m68k_rom_bank, 0);
+  cpu68k_map_set(m68k_read16_map,  0x000000, rs - 1, Pico32xMem->m68k_rom_bank, 0);
   cpu68k_map_set(m68k_write8_map,  0x000000, rs - 1, PicoWrite8_hint, 1); // TODO verify
   cpu68k_map_set(m68k_write16_map, 0x000000, rs - 1, PicoWrite16_hint, 1);
 
@@ -1535,6 +1537,18 @@ void PicoMemSetup32x(void)
 #ifdef DRC_SH2
   sh2_drc_mem_setup(&msh2);
   sh2_drc_mem_setup(&ssh2);
+#endif
+}
+
+void Pico32xStateLoaded(void)
+{
+  bank_switch(Pico32x.regs[4 / 2]);
+  Pico32xSwapDRAM((Pico32x.vdp_regs[0x0a / 2] & P32XV_FS) ^ P32XV_FS);
+  p32x_poll_event(3, 0);
+  Pico32x.dirty_pal = 1;
+  memset(Pico32xMem->pwm, 0, sizeof(Pico32xMem->pwm));
+#ifdef DRC_SH2
+  sh2_drc_flush_all();
 #endif
 }
 
