@@ -50,7 +50,7 @@ EE_OBJS += platform/common/emu.o platform/common/menu.o platform/common/fonts.o 
 	 	platform/common/readpng.o platform/common/input.o platform/common/main.o
 
 # Pico
-EE_OBJS += pico/area.o pico/cart.o pico/debug.o pico/memory.o pico/misc.o \
+EE_OBJS += pico/state.o pico/cart.o pico/debug.o pico/memory.o pico/misc.o \
 		pico/pico/pico.o pico/pico/memory.o pico/pico/xpcm.o	\
 		pico/pico.o pico/sek.o pico/videoport.o pico/draw2.o pico/draw.o \
 		pico/patch.o pico/z80if.o pico/sms.o pico/mode4.o pico/eeprom.o \
@@ -59,7 +59,7 @@ EE_OBJS += pico/area.o pico/cart.o pico/debug.o pico/memory.o pico/misc.o \
 # Pico - CD
 EE_OBJS += pico/cd/pico.o pico/cd/memory.o pico/cd/sek.o pico/cd/LC89510.o \
 		pico/cd/cd_sys.o pico/cd/cd_file.o pico/cd/gfx_cd.o \
-		pico/cd/area.o pico/cd/misc.o pico/cd/pcm.o pico/cd/buffering.o pico/cd/cue.o
+		pico/cd/misc.o pico/cd/pcm.o pico/cd/buffering.o pico/cd/cue.o
 
 # Pico - 32X
 EE_OBJS += pico/32x/32x.o pico/32x/memory.o pico/32x/draw.o pico/32x/pwm.o
