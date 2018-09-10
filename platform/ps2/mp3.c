@@ -194,14 +194,14 @@ static void FillOutputBuffer(void)
 }
 
 // might be called before initialization
-int mp3_get_bitrate(FILE *f, int size)
+int mp3_get_bitrate(void *f, int size)
 {
 	int ret, retval = -1, bytes_read, i;
 	struct mad_stream TempMp3Stream;
 	struct mad_header TempMp3Header;
 
-	// filenames are stored instead handles in PSP, due to stupid max open file limit
-	char *fname = (char *)f;
+	// filenames are stored instead handles in PS2, due to stupid max open file limit
+	char *fname = f;
 
 	if (mp3_handle != NULL) fclose(mp3_handle);
 	if((mp3_handle = fopen(fname, "rb"))==NULL){
@@ -284,9 +284,9 @@ end:
 	return retval;
 }
 
-void mp3_start_play(FILE *f, int pos)
+void mp3_start_play(void *f, int pos)
 {
-	char *fname = (char *)f;
+	char *fname = f;
 
 	if (!initialized) return;
 
