@@ -5,9 +5,6 @@
 #include "lprintf.h"
 
 int readpng(void *dest, const char *fname, readpng_what what, int req_w, int req_h)
-#elif defined(_EE)
-#define BG_WIDTH  320
-#define BG_HEIGHT 224
 {
 	FILE *fp;
 	png_structp png_ptr = NULL;
@@ -97,10 +94,10 @@ int readpng(void *dest, const char *fname, readpng_what what, int req_w, int req
 		{
 			int x, y, x1, y1;
 			unsigned char *dst = dest;
-			if (info_ptr->width != req_w || info_ptr->height != req_h)
+			if (width != req_w || height != req_h)
 			{
 				lprintf(__FILE__ ": unexpected font image size %dx%d, needed %dx%d\n",
-					(int)info_ptr->width, (int)info_ptr->height, req_w, req_h);
+					width, height, req_w, req_h);
 				break;
 			}
 			if (bit_depth != 8)
@@ -130,10 +127,10 @@ int readpng(void *dest, const char *fname, readpng_what what, int req_w, int req
 		{
 			int x1, y1;
 			unsigned char *dst = dest;
-			if (info_ptr->width != req_w || info_ptr->height != req_h)
+			if (width != req_w || height != req_h)
 			{
 				lprintf(__FILE__ ": unexpected selector image size %ix%i, needed %dx%d\n",
-					(int)info_ptr->width, (int)info_ptr->height, req_w, req_h);
+					width, height, req_w, req_h);
 				break;
 			}
 			if (bit_depth != 8)
