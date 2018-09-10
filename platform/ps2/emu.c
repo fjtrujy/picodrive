@@ -277,8 +277,7 @@ static void vidResetMode(void) {
 			//16-bit mode
 			PicoDrawSetOutFormat(PDF_RGB555, 0);
 			PicoDrawSetOutBuf(g_screen_ptr, g_screen_width);
-			PicoScanBegin = &EmuScanSlow16;
-			PicoScanEnd = NULL;
+			PicoDrawSetCallbacks(EmuScanSlow16, NULL);
 
 			frameBufferTexture->PSM=GS_PSM_CT16;
 			//No CLUT.
@@ -287,8 +286,7 @@ static void vidResetMode(void) {
 			// //8-bit mode
 			PicoDrawSetOutFormat(PDF_8BIT, 0);
 			PicoDrawSetOutBuf(g_screen_ptr, g_screen_width);
-			// PicoScanBegin = &EmuScanSlow8;
-			// PicoScanEnd = NULL;
+			PicoDrawSetCallbacks(EmuScanSlow8, NULL);
 
 			frameBufferTexture->PSM=GS_PSM_T8;
 			frameBufferTexture->ClutPSM=GS_PSM_CT16;
