@@ -5,9 +5,16 @@
 #include "input.h"
 #include "plat.h"
 #include "lprintf.h"
+
+#ifdef IN_EVDEV
 #include "../linux/in_evdev.h"
+#endif
+#ifdef IN_GP2X
 #include "../gp2x/in_gp2x.h"
+#endif
+#ifdef IN_VK
 #include "../win32/in_vk.h"
+#endif
 
 #ifdef IN_PS2
 #include "../ps2/in_ps2.h"
@@ -259,10 +266,11 @@ int in_update(int *result)
             case IN_DRVID_PS2:
 				ret |= in_ps2_update(dev->drv_data, dev->binds, result);
 				break;
-#else
+#endif
+#ifdef IN_VK
             case IN_DRVID_VK:
-                    ret |= in_vk_update(dev->drv_data, dev->binds, result);
-                    break;
+				ret |= in_vk_update(dev->drv_data, dev->binds, result);
+				break;
 #endif
 			}
 		}
@@ -823,9 +831,10 @@ void in_init(void)
 	in_evdev_init(&in_drivers[IN_DRVID_EVDEV]);
 #endif
 #ifdef IN_PS2
-    in_ps2_init(&in_drivers[IN_DRVID_PS2]);
-#else
-    in_vk_init(&in_drivers[IN_DRVID_VK]);
+	in_ps2_init(&in_drivers[IN_DRVID_PS2]);
+#endif
+#ifdef IN_VK
+	in_vk_init(&in_drivers[IN_DRVID_VK]);
 #endif
 }
 
