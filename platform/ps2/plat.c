@@ -138,6 +138,7 @@ void plat_early_init(void) {
 
     while(!SifIopSync()){};
 
+    earlyInitModules();
 }
 
 void plat_init(void) {

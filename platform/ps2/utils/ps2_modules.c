@@ -99,13 +99,13 @@ static void loadIOPModules(void) {
 static int getBootDeviceID(char *path) {
     int result = BOOT_DEVICE_HOST;
 
-    // if(!strncmp(path, "mc0:", 4)) result=BOOT_DEVICE_MC0;
-    // else if(!strncmp(path, "mc1:", 4)) result=BOOT_DEVICE_MC1;
-    // else if(!strncmp(path, "cdrom0:", 7)) result=BOOT_DEVICE_CDROM;
-    // else if(!strncmp(path, "mass:", 5) || !strncmp(path, "mass0:", 6)) result=BOOT_DEVICE_MASS;
-    // else if(!strncmp(path, "hdd:", 4) || !strncmp(path, "hdd0:", 5)) result=BOOT_DEVICE_HDD;
-    // else if(!strncmp(path, "host", 4) && ((path[4]>='0' && path[4]<='9') || path[4]==':')) result=BOOT_DEVICE_HOST;
-    // else result=BOOT_DEVICE_UNKNOWN;
+    if(!strncmp(path, "mc0:", 4)) result=BOOT_DEVICE_MC0;
+    else if(!strncmp(path, "mc1:", 4)) result=BOOT_DEVICE_MC1;
+    else if(!strncmp(path, "cdrom0:", 7)) result=BOOT_DEVICE_CDROM;
+    else if(!strncmp(path, "mass:", 5) || !strncmp(path, "mass0:", 6)) result=BOOT_DEVICE_MASS;
+    else if(!strncmp(path, "hdd:", 4) || !strncmp(path, "hdd0:", 5)) result=BOOT_DEVICE_HDD;
+    else if(!strncmp(path, "host", 4) && ((path[4]>='0' && path[4]<='9') || path[4]==':')) result=BOOT_DEVICE_HOST;
+    else result=BOOT_DEVICE_UNKNOWN;
 
     return result;
 }
@@ -175,14 +175,16 @@ void loadHDDModules(void) {
     }
 }
 
+void earlyInitModules(void) {
+    sbv_patch_enable_lmb();
+    loadIOPModules();
+}
+
 void initModules(void) {
     char cwd[FILENAME_MAX], blockDevice[16];
     const char *mountPoint;
     int bootDeviceID;
     
-    sbv_patch_enable_lmb();
-    
-    loadIOPModules();
     fileXioInit();
     audsrv_init();
 
