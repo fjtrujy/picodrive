@@ -132,12 +132,12 @@ static void writeSound(int len) {
 	//lprintf("FJTRUJY: writeSound\n");
 	if (isPicoOptStereoEnabled()) len<<=1;
 
-	PsndOut += len;
+	PsndOut += len / 2;
 	if (PsndOut >= sndBuffer_endptr)
 		PsndOut = sndBuffer;
 
 	// signal the snd thread
-	samples_made += len;
+	samples_made += len / 2;
 	if (samples_made - samples_done > samples_block*2) {
 		WakeupThread(sound_thread_id);
 	}
