@@ -210,8 +210,8 @@ else ifeq ($(platform), ps2)
 	NO_MMAP = 1
 	DONT_COMPILE_IN_ZLIB = 1
 
-	asm_render = 1
-	OBJS += platform/ps2/asm.o
+	# asm_render = 1
+	# OBJS += platform/ps2/asm.o
 
 # CTR (3DS)
 else ifeq ($(platform), ctr)
