@@ -530,6 +530,8 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols)
    //    padding = (struct retro_hw_ps2_insets){start_line, 16.0f, VOUT_MAX_HEIGHT - line_count - start_line, 0.0f};
    // }
 
+   padding = (struct retro_hw_ps2_insets){8.0f, 8.0f, 8.0f, 8.0f};
+
    vout_width = VOUT_MAX_WIDTH;
    vout_height = VOUT_MAX_HEIGHT;
    memset(vout_buf, 0, vout_width * VOUT_MAX_HEIGHT);
@@ -1492,17 +1494,6 @@ void retro_run(void)
          return;
       }
 
-      int i;
-      // unsigned short int *pal=(void *)retro_palette;
-      // //Rotate CLUT.
-      // for (i = 0; i < 256; i++) {
-      //    if ((i&0x18) == 8) {
-      //       unsigned short int tmp = Pico.est.HighPal[i];
-      //       pal[i] = pal[i+8];
-      //       pal[i+8] = tmp;
-      //    }
-      // }
-
       ps2->coreTexture->Width = vout_width;
       ps2->coreTexture->Height = vout_height;
       ps2->coreTexture->PSM = GS_PSM_T8;
@@ -1512,6 +1503,41 @@ void retro_run(void)
       ps2->coreTexture->Mem = Pico.est.Draw2FB;
       ps2->padding = padding;
    }
+
+         // unsigned short int *pal=(void *)retro_palette;
+      
+   
+   if (Pico.m.dirtyPal) {
+      int i;
+      PicoDrawUpdateHighPal();
+
+      // //Rotate CLUT.
+      for (i = 0; i < 256; i++) {
+         if ((i&0x18) == 8) {
+            unsigned short int tmp = Pico.est.HighPal[i];
+            Pico.est.HighPal[i] = Pico.est.HighPal[i+8];
+            Pico.est.HighPal[i+8] = tmp;
+         }
+      }
+   }
+
+
+
+   // int index;
+   // for (index = 0; index < 256; index ++) {
+   //    printf("Palette pos %i, value %x\n", index, Pico.est.HighPal[index]);
+   // }
+   // for (index = 0; index < vout_width*vout_height; index += vout_width + 1) {
+   //    printf("Buffer pos %i, value %x\n", index, Pico.est.Draw2FB[index]);
+   // }
+
+   // void *cram = Pico.est.PicoMem_cram;
+   // for (index = 0; index < 64; index ++) {
+   //    printf("PicoMem_cram pos %i, value %x\n", index, &cram[index]);
+   // }
+   
+
+   
 
    // if (Pico.m.dirtyPal) {
    //    int i;
