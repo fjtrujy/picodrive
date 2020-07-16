@@ -1500,7 +1500,11 @@ void retro_run(void)
       ps2->coreTexture->ClutPSM = GS_PSM_CT16;
       ps2->coreTexture->Filter = GS_FILTER_LINEAR;
       ps2->coreTexture->Clut = Pico.est.HighPal;
+#if RENDER_FAST_PS2
       ps2->coreTexture->Mem = Pico.est.Draw2FB;
+#else
+      ps2->coreTexture->Mem = vout_buf;
+#endif
       ps2->padding = padding;
    }
 
@@ -1675,10 +1679,13 @@ void retro_init(void)
 
    PicoInit();
 #if defined(RENDER_GSKIT_PS2)
+#if RENDER_FAST_PS2
+   PicoDrawSetOutFormat(PDF_NONE, 0);
+   PicoIn.opt |= POPT_ALT_RENDERER;
+#else
    PicoDrawSetOutFormat(PDF_8BIT, 0);
-	PicoDrawSetOutBuf(vout_buf, vout_width);
-   // PicoIn.opt |= POPT_ALT_RENDERER;
-   // PicoDrawSetOutputMode4(PDF_8BIT);
+#endif
+   PicoDrawSetOutBuf(vout_buf, vout_width);
 #else
    PicoDrawSetOutFormat(PDF_RGB555, 0);
    PicoDrawSetOutBuf(vout_buf, vout_width * 2);
