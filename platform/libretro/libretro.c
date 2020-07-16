@@ -82,7 +82,7 @@ static retro_environment_t environ_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
 #if defined(RENDER_GSKIT_PS2)
-#define VOUT_MAX_WIDTH 328
+#define VOUT_MAX_WIDTH 320
 #else
 #define VOUT_MAX_WIDTH 320
 #define VOUT_32BIT_WIDTH 256
@@ -530,7 +530,7 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols)
    //    padding = (struct retro_hw_ps2_insets){start_line, 16.0f, VOUT_MAX_HEIGHT - line_count - start_line, 0.0f};
    // }
 
-   padding = (struct retro_hw_ps2_insets){8.0f, 8.0f, 8.0f, 8.0f};
+   padding = (struct retro_hw_ps2_insets){0.0f, 0.0f, 0.0f, 0.0f};
 
    vout_width = VOUT_MAX_WIDTH;
    vout_height = VOUT_MAX_HEIGHT;
@@ -1675,9 +1675,9 @@ void retro_init(void)
 
    PicoInit();
 #if defined(RENDER_GSKIT_PS2)
-   PicoDrawSetOutFormat(PDF_NONE, 0);
+   PicoDrawSetOutFormat(PDF_8BIT, 0);
 	PicoDrawSetOutBuf(vout_buf, vout_width);
-   PicoIn.opt |= POPT_ALT_RENDERER;
+   // PicoIn.opt |= POPT_ALT_RENDERER;
    // PicoDrawSetOutputMode4(PDF_8BIT);
 #else
    PicoDrawSetOutFormat(PDF_RGB555, 0);
