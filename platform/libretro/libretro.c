@@ -38,6 +38,7 @@
 #if defined(RENDER_GSKIT_PS2)
 #include "libretro-common/include/libretro_gskit_ps2.h"
 // #include "../ps2/asm.h"
+#define RENDER_FAST_PS2 0
 #endif
 
 #ifdef _3DS
@@ -82,12 +83,13 @@ static retro_environment_t environ_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
 #if defined(RENDER_GSKIT_PS2)
-#define VOUT_MAX_WIDTH 320
+#define VOUT_MAX_WIDTH 328
+#define VOUT_MAX_HEIGHT 256
 #else
 #define VOUT_MAX_WIDTH 320
 #define VOUT_32BIT_WIDTH 256
-#endif
 #define VOUT_MAX_HEIGHT 240
+#endif
 #define INITIAL_SND_RATE 44100
 
 static const float VOUT_PAR = 0.0;
@@ -530,7 +532,7 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols)
    //    padding = (struct retro_hw_ps2_insets){start_line, 16.0f, VOUT_MAX_HEIGHT - line_count - start_line, 0.0f};
    // }
 
-   padding = (struct retro_hw_ps2_insets){0.0f, 0.0f, 0.0f, 0.0f};
+   padding = (struct retro_hw_ps2_insets){8.0f, 4.0f, 8.0f, 4.0f};
 
    vout_width = VOUT_MAX_WIDTH;
    vout_height = VOUT_MAX_HEIGHT;
@@ -1500,11 +1502,7 @@ void retro_run(void)
       ps2->coreTexture->ClutPSM = GS_PSM_CT16;
       ps2->coreTexture->Filter = GS_FILTER_LINEAR;
       ps2->coreTexture->Clut = Pico.est.HighPal;
-#if RENDER_FAST_PS2
-      ps2->coreTexture->Mem = Pico.est.Draw2FB;
-#else
       ps2->coreTexture->Mem = vout_buf;
-#endif
       ps2->padding = padding;
    }
 
@@ -1680,12 +1678,13 @@ void retro_init(void)
    PicoInit();
 #if defined(RENDER_GSKIT_PS2)
 #if RENDER_FAST_PS2
-   PicoDrawSetOutFormat(PDF_NONE, 0);
+   PicoDrawSetOutFormat(PDF_NONE, vout_width);
    PicoIn.opt |= POPT_ALT_RENDERER;
-#else
-   PicoDrawSetOutFormat(PDF_8BIT, 0);
-#endif
    PicoDrawSetOutBuf(vout_buf, vout_width);
+#else
+   PicoDrawSetOutFormat(PDF_8BIT, vout_width);
+   PicoDrawSetOutBuf(vout_buf + 8*vout_width, vout_width);
+#endif
 #else
    PicoDrawSetOutFormat(PDF_RGB555, 0);
    PicoDrawSetOutBuf(vout_buf, vout_width * 2);

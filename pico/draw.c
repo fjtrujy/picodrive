@@ -1899,7 +1899,13 @@ void PicoDrawSetOutBufMD(void *dest, int increment)
     // kludge for no-copy mode
     PicoDrawSetInternalBuf(dest, increment);
   }
-  if (dest != NULL) {
+  if (FinalizeLine == NULL) {
+    // hack for fast renderer (platform-supplied buffer)
+    if (dest != NULL)
+      Pico.est.Draw2FB = dest;
+    else
+      PicoDraw2Init();
+  } else if (dest != NULL) {
     DrawLineDestBase = dest;
     DrawLineDestIncrement = increment;
     Pico.est.DrawLineDest = DrawLineDestBase + Pico.est.DrawScanline * increment;
