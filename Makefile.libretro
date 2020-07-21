@@ -203,7 +203,7 @@ else ifeq ($(platform), ps2)
 	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = ee-gcc$(EXE_EXT)
 	AR = ee-ar$(EXE_EXT)
-	CFLAGS += -Wall -DPS2 -DUSE_BGR555 -DFAMEC_NO_GOTOS -DRENDER_GSKIT_PS2 -fsingle-precision-constant
+	CFLAGS += -DPS2 -DUSE_BGR555 -DFAMEC_NO_GOTOS -DRENDER_GSKIT_PS2 -D_ASM_MISC_C_AMIPS -fsingle-precision-constant
 	CFLAGS += -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include
 	CFLAGS += -DHAVE_NO_LANGEXTRA
 	STATIC_LINKING = 1
@@ -212,6 +212,8 @@ else ifeq ($(platform), ps2)
 
 	# asm_render = 1
 	# OBJS += platform/ps2/asm.o
+	OBJS += pico/misc_amips.o
+	
 
 # CTR (3DS)
 else ifeq ($(platform), ctr)
