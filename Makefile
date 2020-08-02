@@ -220,6 +220,10 @@ include platform/common/common.mak
 OBJS += $(OBJS_COMMON)
 CFLAGS += $(addprefix -D,$(DEFINES))
 
+ifneq (,$(findstring sdl,$(OBJS)))
+CFLAGS += -DUSE_SDL
+endif
+
 ifneq ($(findstring gcc,$(CC)),)
 ifneq ($(findstring SunOS,$(shell uname -a)),SunOS)
 LDFLAGS += -Wl,-Map=$(TARGET).map
