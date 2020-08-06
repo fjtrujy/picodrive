@@ -38,7 +38,7 @@
 #if defined(RENDER_GSKIT_PS2)
 #include "libretro-common/include/libretro_gskit_ps2.h"
 // #include "../ps2/asm.h"
-#define RENDER_FAST_PS2 0
+#define RENDER_FAST_PS2 1
 #endif
 
 #ifdef _3DS
@@ -526,13 +526,13 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols)
    vm_current_is_32cols = is_32cols;
 
 #if defined(RENDER_GSKIT_PS2)
-   // if (is_32cols) {
-   //    padding = (struct retro_hw_ps2_insets){start_line, 16.0f, VOUT_MAX_HEIGHT - line_count - start_line, 64.0f};
-   // } else {
-   //    padding = (struct retro_hw_ps2_insets){start_line, 16.0f, VOUT_MAX_HEIGHT - line_count - start_line, 0.0f};
-   // }
-
-   padding = (struct retro_hw_ps2_insets){8.0f, 4.0f, 8.0f, 4.0f};
+   if (is_32cols) {
+      // 256x240, with left 8 px overscan on the left and 64 px on the right
+      padding = (struct retro_hw_ps2_insets){start_line, 8.0f, VOUT_MAX_HEIGHT - line_count - start_line, VOUT_MAX_WIDTH - 264.0f};
+   } else {
+      // 320x240, with left 8 px overscan on the left and none on the right
+      padding = (struct retro_hw_ps2_insets){start_line, 8.0f, VOUT_MAX_HEIGHT - line_count - start_line, VOUT_MAX_WIDTH - 328.0f};
+   }
 
    vout_width = VOUT_MAX_WIDTH;
    vout_height = VOUT_MAX_HEIGHT;
@@ -1501,19 +1501,30 @@ void retro_run(void)
       ps2->coreTexture->PSM = GS_PSM_T8;
       ps2->coreTexture->ClutPSM = GS_PSM_CT16;
       ps2->coreTexture->Filter = GS_FILTER_LINEAR;
+#if 1
+      ps2->coreTexture->Clut = retro_palette;
+#else
       ps2->coreTexture->Clut = Pico.est.HighPal;
+#endif
       ps2->coreTexture->Mem = vout_buf;
       ps2->padding = padding;
    }
 
-         // unsigned short int *pal=(void *)retro_palette;
-      
-   
    if (Pico.m.dirtyPal) {
-      int i;
       PicoDrawUpdateHighPal();
 
-      // //Rotate CLUT.
+      // Rotate CLUT.
+#if 1
+      unsigned short int *pal=(void *)retro_palette;
+      for (i = 0; i < 256; i+=8) {
+         if ((i&0x18) == 0x08)
+            memcpy(pal+i,Pico.est.HighPal+i+8,16);
+         else if ((i&0x18) == 0x10)
+            memcpy(pal+i,Pico.est.HighPal+i-8,16);
+         else
+            memcpy(pal+i,Pico.est.HighPal+i,16);
+      }
+#else
       for (i = 0; i < 256; i++) {
          if ((i&0x18) == 8) {
             unsigned short int tmp = Pico.est.HighPal[i];
@@ -1521,81 +1532,8 @@ void retro_run(void)
             Pico.est.HighPal[i+8] = tmp;
          }
       }
+#endif
    }
-
-
-
-   // int index;
-   // for (index = 0; index < 256; index ++) {
-   //    printf("Palette pos %i, value %x\n", index, Pico.est.HighPal[index]);
-   // }
-   // for (index = 0; index < vout_width*vout_height; index += vout_width + 1) {
-   //    printf("Buffer pos %i, value %x\n", index, Pico.est.Draw2FB[index]);
-   // }
-
-   // void *cram = Pico.est.PicoMem_cram;
-   // for (index = 0; index < 64; index ++) {
-   //    printf("PicoMem_cram pos %i, value %x\n", index, &cram[index]);
-   // }
-   
-
-   
-
-   // if (Pico.m.dirtyPal) {
-   //    int i;
-   //    unsigned short int *pal=(void *)ps2->coreTexture->Clut;
-
-      // if (PicoIn.AHW & PAHW_SMS) {
-      //    // SMS
-      //    unsigned int *spal=(void *)PicoMem.cram;
-      //    unsigned int *dpal=(void *)pal;
-      //    unsigned int t;
-
-         // /* cram is always stored as shorts, even though real hardware probably uses bytes */
-         // for (i = 0x20/2; i > 0; i--, spal++, dpal++) {
-         //    t = *spal;
-         //    t = ((t & 0x00030003)<< 3) | ((t & 0x000c000c)<<6) | ((t & 0x00300030)<<9);
-         //    t |= t >> 2;
-         //    t |= (t >> 4) & 0x08610861;
-         //    *dpal = t;
-         // }
-         // pal[0xe0] = 0;
-
-
-      // } else if (PicoIn.AHW & PAHW_32X) {
-      //    // MCD+32X
-      // } else if (PicoIn.AHW & PAHW_MCD) {
-      //    // MCD
-      // } else {
-      //    // MD
-      //    if(Pico.video.reg[0xC]&8){
-      //       do_pal_convert_with_shadows(pal, PicoMem.cram);
-      //    } else {
-      //       do_pal_convert(pal, PicoMem.cram);
-      //       if (Pico.est.rendstatus & PDRAW_SONIC_MODE) {
-      //          memcpy(&pal[0x80], pal, 0x40*2);
-      //       }
-      //    }
-      // }
-
-
-  	//    //Rotate CLUT.
-   //    for (i = 0; i < 256; i++) {
-   //       if ((i&0x18) == 8) {
-   //          unsigned short int tmp = pal[i];
-   //          pal[i] = pal[i+8];
-   //          pal[i+8] = tmp;
-   //       }
-   //    }
-
-   //    Pico.m.dirtyPal = 0;
-   // }
-
-   // if (PicoIn.AHW & PAHW_SMS) {
-   //    ps2->coreTexture->Mem = vout_buf;
-   // } else {
-   //    ps2->coreTexture->Mem = Pico.est.Draw2FB;
-   // }
 
 #else
    if (PicoIn.opt & POPT_ALT_RENDERER) {
@@ -1669,7 +1607,7 @@ void retro_init(void)
 #ifdef _3DS
    vout_buf = linearMemAlign(VOUT_MAX_WIDTH * VOUT_MAX_HEIGHT * 2, 0x80);
 #elif defined(RENDER_GSKIT_PS2)
-   vout_buf = memalign(128, VOUT_MAX_WIDTH * VOUT_MAX_HEIGHT);
+   vout_buf = memalign(4096, VOUT_MAX_WIDTH * VOUT_MAX_HEIGHT);
    retro_palette = memalign(128, gsKit_texture_size_ee(16, 16, GS_PSM_CT16));
 #else
    vout_buf = malloc(VOUT_MAX_WIDTH * VOUT_MAX_HEIGHT * 2);
@@ -1680,11 +1618,10 @@ void retro_init(void)
 #if RENDER_FAST_PS2
    PicoDrawSetOutFormat(PDF_NONE, vout_width);
    PicoIn.opt |= POPT_ALT_RENDERER;
-   PicoDrawSetOutBuf(vout_buf, vout_width);
 #else
    PicoDrawSetOutFormat(PDF_8BIT, vout_width);
-   PicoDrawSetOutBuf(vout_buf + 8*vout_width, vout_width);
 #endif
+   PicoDrawSetOutBuf(vout_buf, vout_width);
 #else
    PicoDrawSetOutFormat(PDF_RGB555, 0);
    PicoDrawSetOutBuf(vout_buf, vout_width * 2);
