@@ -200,6 +200,7 @@ else ifeq ($(platform), psp1)
 
 # PS2
 else ifeq ($(platform), ps2)
+	ARCH = mips
 	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = ee-gcc$(EXE_EXT)
 	AR = ee-ar$(EXE_EXT)
@@ -213,7 +214,6 @@ else ifeq ($(platform), ps2)
 	# asm_render = 1
 	# OBJS += platform/ps2/asm.o
 	OBJS += pico/misc_amips.o
-	
 
 # CTR (3DS)
 else ifeq ($(platform), ctr)
