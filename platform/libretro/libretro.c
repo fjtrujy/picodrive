@@ -542,7 +542,8 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols)
 #else
    vout_width = is_32cols ? VOUT_32BIT_WIDTH : VOUT_MAX_WIDTH;
    memset(vout_buf, 0, VOUT_MAX_WIDTH * VOUT_MAX_HEIGHT * 2);  
-   PicoDrawSetOutBuf(vout_buf, vout_width * 2);
+   if (!(PicoIn.opt & POPT_ALT_RENDERER)
+      PicoDrawSetOutBuf(vout_buf, vout_width * 2);
 
    if (show_overscan)
    {
@@ -571,6 +572,7 @@ void emu_video_mode_change(int start_line, int line_count, int is_32cols)
 
 void emu_32x_startup(void)
 {
+   PicoIn.opt &= ~POPT_ALT_RENDERER;
    PicoDrawSetOutFormat(PDF_RGB555, 0);
    PicoDrawSetOutBuf(vout_buf, vout_width * 2);
 }
@@ -1614,24 +1616,28 @@ void retro_init(void)
 #endif
 
    PicoInit();
-#if defined(RENDER_GSKIT_PS2)
-#if RENDER_FAST_PS2
-   PicoDrawSetOutFormat(PDF_NONE, vout_width);
-   PicoIn.opt |= POPT_ALT_RENDERER;
-#else
-   PicoDrawSetOutFormat(PDF_8BIT, vout_width);
-#endif
-   PicoDrawSetOutBuf(vout_buf, vout_width);
-#else
-   PicoDrawSetOutFormat(PDF_RGB555, 0);
-   PicoDrawSetOutBuf(vout_buf, vout_width * 2);
-#endif
-
    //PicoIn.osdMessage = plat_status_msg_busy_next;
    PicoIn.mcdTrayOpen = disk_tray_open;
    PicoIn.mcdTrayClose = disk_tray_close;
 
    update_variables();
+
+#if defined(RENDER_GSKIT_PS2)
+#if RENDER_FAST_PS2
+   PicoDrawSetOutFormat(PDF_NONE, 0);
+   PicoIn.opt |= POPT_ALT_RENDERER;
+#else
+   PicoDrawSetOutFormat(PDF_8BIT, 0);
+#endif
+   PicoDrawSetOutBuf(vout_buf, vout_width);
+#else
+   if (PicoIn.opt & POPT_ALT_RENDERER) {
+      PicoDrawSetOutFormat(PDF_NONE, 0);
+   } else {
+      PicoDrawSetOutFormat(PDF_RGB555, 0);
+      PicoDrawSetOutBuf(vout_buf, vout_width * 2);
+   }
+#endif
 }
 
 void retro_deinit(void)
