@@ -582,7 +582,7 @@ static void PicoWrite16_z80(u32 a, u32 d)
 #ifndef _ASM_MEMORY_C
 
 // IO/control area (0xa10000 - 0xa1ffff)
-u32 PicoRead8_io(u32 a)
+unsigned int PicoRead8_io(unsigned int a)
 {
   u32 d;
 
@@ -613,7 +613,7 @@ end:
   return d;
 }
 
-u32 PicoRead16_io(u32 a)
+unsigned int PicoRead16_io(unsigned int a)
 {
   u32 d;
 
@@ -644,7 +644,7 @@ end:
   return d;
 }
 
-void PicoWrite8_io(u32 a, u32 d)
+void PicoWrite8_io(unsigned int a, unsigned int d)
 {
   if ((a & 0xffe1) == 0x0001) { // I/O ports (verified: only LSB!)
     io_ports_write(a, d);
@@ -667,7 +667,7 @@ void PicoWrite8_io(u32 a, u32 d)
   PicoWrite8_32x(a, d);
 }
 
-void PicoWrite16_io(u32 a, u32 d)
+void PicoWrite16_io(unsigned int a, unsigned int d)
 {
   if ((a & 0xffe0) == 0x0000) { // I/O ports (verified: only LSB!)
     io_ports_write(a, d);

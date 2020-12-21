@@ -214,7 +214,7 @@ void cache_flush_d_inval_i(void *start, void *end)
 
 #ifdef RENDER_GSKIT_PS2
 /* ee-gcc is version 3.2, where these aren't yet defined */
-void __builtin___clear_cache(void *b, void *e)
+void _flush_cache(void *b, void *e)
 {
 #if 0 /* which of these is overall faster for lots of small cache updates? */
    SyncDCache(b, e);

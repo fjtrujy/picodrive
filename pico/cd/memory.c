@@ -663,7 +663,7 @@ static void PicoWriteM68k16_ramc(u32 a, u32 d)
 
 // IO/control/cd registers (a10000 - ...)
 #ifndef _ASM_CD_MEMORY_C
-u32 PicoRead8_mcd_io(u32 a)
+unsigned int PicoRead8_mcd_io(unsigned int a)
 {
   u32 d;
   if ((a & 0xff00) == 0x2000) { // a12000 - a120ff
@@ -680,7 +680,7 @@ u32 PicoRead8_mcd_io(u32 a)
   return PicoRead8_io(a);
 }
 
-u32 PicoRead16_mcd_io(u32 a)
+unsigned int PicoRead16_mcd_io(unsigned int a)
 {
   u32 d;
   if ((a & 0xff00) == 0x2000) {
@@ -693,7 +693,7 @@ u32 PicoRead16_mcd_io(u32 a)
   return PicoRead16_io(a);
 }
 
-void PicoWrite8_mcd_io(u32 a, u32 d)
+void PicoWrite8_mcd_io(unsigned int a, unsigned int d)
 {
   if ((a & 0xff00) == 0x2000) { // a12000 - a120ff
     elprintf(EL_CDREGS, "m68k_regs w8:  [%02x]   %02x @%06x",
@@ -705,7 +705,7 @@ void PicoWrite8_mcd_io(u32 a, u32 d)
   PicoWrite8_io(a, d);
 }
 
-void PicoWrite16_mcd_io(u32 a, u32 d)
+void PicoWrite16_mcd_io(unsigned int a, unsigned int d)
 {
   if ((a & 0xff00) == 0x2000) { // a12000 - a120ff
     elprintf(EL_CDREGS, "m68k_regs w16: [%02x] %04x @%06x",
