@@ -237,88 +237,6 @@ struct plat_target plat_target = {
 //	.hwfilters = plat_hwfilters,
 };
 
-
-/* replacement libc stuff */
-
-int alphasort(const struct dirent **a, const struct dirent **b)
-{
-	return strcoll ((*a)->d_name, (*b)->d_name);
-}
-
-int scandir(const char *dir, struct dirent ***namelist_out,
-		int(*filter)(const struct dirent *),
-		int(*compar)(const struct dirent **, const struct dirent **))
-{
-	int ret = -1, dir_uid = -1, name_alloc = 4, name_count = 0;
-	struct dirent **namelist = NULL, *ent;
-	SceIoDirent sce_ent;
-
-	namelist = malloc(sizeof(*namelist) * name_alloc);
-	if (namelist == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
-
-	// try to read first..
-	dir_uid = sceIoDopen(dir);
-	if (dir_uid >= 0)
-	{
-		/* it is very important to clear SceIoDirent to be passed to sceIoDread(), */
-		/* or else it may crash, probably misinterpreting something in it. */
-		memset(&sce_ent, 0, sizeof(sce_ent));
-		ret = sceIoDread(dir_uid, &sce_ent);
-		if (ret < 0)
-		{
-			lprintf("sceIoDread(\"%s\") failed with %i\n", dir, ret);
-			goto fail;
-		}
-	}
-	else
-		lprintf("sceIoDopen(\"%s\") failed with %i\n", dir, dir_uid);
-
-	while (ret > 0)
-	{
-		ent = malloc(sizeof(*ent));
-		if (ent == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
-		ent->d_stat = sce_ent.d_stat;
-		ent->d_stat.st_attr &= FIO_SO_IFMT; // serves as d_type
-		strncpy(ent->d_name, sce_ent.d_name, sizeof(ent->d_name));
-		ent->d_name[sizeof(ent->d_name)-1] = 0;
-		if (filter == NULL || filter(ent))
-		     namelist[name_count++] = ent;
-		else free(ent);
-
-		if (name_count >= name_alloc)
-		{
-			void *tmp;
-			name_alloc *= 2;
-			tmp = realloc(namelist, sizeof(*namelist) * name_alloc);
-			if (tmp == NULL) { lprintf("%s:%i: OOM\n", __FILE__, __LINE__); goto fail; }
-			namelist = tmp;
-		}
-
-		memset(&sce_ent, 0, sizeof(sce_ent));
-		ret = sceIoDread(dir_uid, &sce_ent);
-	}
-
-	// sort
-	if (compar != NULL && name_count > 3)
-		qsort(&namelist[2], name_count - 2, sizeof(namelist[0]), (int (*)()) compar);
-
-	// all done.
-	ret = name_count;
-	*namelist_out = namelist;
-	goto end;
-
-fail:
-	if (namelist != NULL)
-	{
-		while (name_count--)
-			free(namelist[name_count]);
-		free(namelist);
-	}
-end:
-	if (dir_uid >= 0) sceIoDclose(dir_uid);
-	return ret;
-}
-
 int _flush_cache (char *addr, const int size, const int op)
 {
 	//sceKernelDcacheWritebackAll();
@@ -326,13 +244,3 @@ int _flush_cache (char *addr, const int size, const int op)
 	sceKernelIcacheInvalidateRange(addr, size);
 	return 0;
 }
-
-/* stubs for libflac (embedded in libchdr) */
-#include <utime.h>
-#include <malloc.h>
-
-int chown(const char *pathname, uid_t owner, gid_t group) { return -1; }
-int chmod(const char *pathname, mode_t mode) { return -1; }
-int utime(const char *filename, const struct utimbuf *times) { return -1; }
-int posix_memalign(void **memptr, size_t alignment, size_t size)
-	{ *memptr = memalign(alignment, size); return 0; }

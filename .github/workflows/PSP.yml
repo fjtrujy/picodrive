@@ -1,0 +1,45 @@
+name: PSP CI
+
+on:
+  push:
+    branches: 
+      - '*'
+    tags:
+      - v*
+  pull_request:
+  repository_dispatch:
+    types: [run_build]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+    steps:
+    - name: Install dependencies
+      run: |
+        apk add build-base git bash zip
+    
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Get short SHA
+      id: slug
+      run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+
+    - name: Compile project
+      run: |
+        export rel=${{ steps.slug.outputs.sha8 }}
+        TC=${PSPDEV} PATH=$TC/bin:$PATH CROSS_COMPILE=psp- CFLAGS="-I$TC/psp/sdk/include -D_POSIX_C_SOURCE=199506L" LDFLAGS="-L$TC/psp/sdk/lib" ./configure --platform=psp
+        TC=${PSPDEV} PATH=$TC/bin:$PATH make clean all
+        make -j$(getconf _NPROCESSORS_ONLN) clean
+        make -j$(getconf _NPROCESSORS_ONLN)
+        make -C platform/psp rel VER=$rel
+
+    - name: Upload artifacts
+      if: ${{ success() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: PicoDrive_psp_${{ steps.slug.outputs.sha8 }}
+        path: |
+          PicoDrive_psp_${{ steps.slug.outputs.sha8 }}.zip

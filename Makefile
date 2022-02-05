@@ -214,7 +214,7 @@ endif
 ifeq "$(PLATFORM)" "psp"
 CFLAGS += -DUSE_BGR565 -G8 # -DLPRINTF_STDIO -DFW15
 LDLIBS += -lpspgu -lpspge -lpsppower -lpspaudio -lpspdisplay -lpspaudiocodec
-LDLIBS += -lpsprtc -lpspctrl -lpspsdk -lc -lpspnet_inet -lpspuser -lpspkernel
+LDLIBS += -lpsprtc -lpspctrl
 platform/common/main.o: CFLAGS += -Dmain=pico_main
 OBJS += platform/psp/plat.o
 OBJS += platform/psp/emu.o
@@ -341,7 +341,7 @@ endif
 ifneq ($(findstring gcc,$(CC)),)
 ifneq ($(findstring SunOS,$(shell uname -a)),SunOS)
 ifeq ($(findstring Darwin,$(shell uname -a)),Darwin)
-LDFLAGS += -Wl,-map,$(TARGET).map
+LDFLAGS += -Wl,-Map,$(TARGET).map
 else
 LDFLAGS += -Wl,-Map=$(TARGET).map
 endif
