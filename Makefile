@@ -231,7 +231,7 @@ OBJS += platform/gp2x/vid_mmsp2.o
 OBJS += platform/gp2x/vid_pollux.o 
 OBJS += platform/gp2x/warm.o 
 USE_FRONTEND = 1
-PLATFORM_MP3 = 1
+PLATFORM_MP3 ?= 1
 endif
 ifeq "$(PLATFORM)" "psp"
 CFLAGS += -DUSE_BGR565 -G8 # -DLPRINTF_STDIO -DFW15
