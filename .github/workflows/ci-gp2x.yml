@@ -13,14 +13,13 @@ jobs:
         docker build -f .github/workflows/Dockerfile-gp2x -t build-gp2x .
     - name: build
       run: |
-        docker run -it -v "$PWD":"/home/picodrive" build-gp2x /bin/sh -c ' \
-		cd /home/picodrive && \
-		ver=$(sed s/^[^"]*"//;s/"[^"]*$// platform/common/version.h)-$(git rev-parse --short HEAD) && \
-		CROSS_COMPILE=arm-none-eabi- ./configure --platform=gp2x && \
-		make PLATFORM_MP3=0 && \
-		make -C platform/gp2x rel VER="$rel" && \
-		mv "PicoDrive_$rel.zip" "PicoDrive-gph_$rel.zip" \
-        '
+        ver=$(cut -d'"' -f2 platform/common/version.h)-$(git rev-parse --short HEAD)
+        dock="docker run -i -v $PWD:/home/picodrive -w /home/picodrive build-gp2x"
+        $dock sh -c "git config --global --add safe.directory /home/picodrive"
+        $dock sh -c "CROSS_COMPILE=arm-none-eabi- ./configure --platform=gp2x"
+        $dock sh -c "make PLATFORM_MP3=0"
+        $dock sh -c "make -C platform/gp2x rel VER=$ver"
+        mv PicoDrive_$ver.zip PicoDrive-gph_$ver.zip
     - name: artifacts
       uses: actions/upload-artifact@v3
       with:

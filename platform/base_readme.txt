@@ -3,7 +3,7 @@ PicoDrive 1.xx
 
 About
 -----
-#include "../README"
+#include "../README.md"
 
 How to make it run
 ------------------

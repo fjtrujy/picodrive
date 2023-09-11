@@ -6,7 +6,7 @@ ENV UNPRIVILEGED_USER_GROUPS=sudo
 
 # minimal build environment
 RUN	apt-get update && \
-	apt-get -y --no-install-recommends install sudo make vim git-core wget curl gcc g++
+	apt-get -y --no-install-recommends install sudo make vim git-core wget curl zip gcc g++
 
 # toolchain and libraries
 # NB arm-none-eabi uses crt0.o as start file, while open2x libs offer crt1.o, so provide a link
