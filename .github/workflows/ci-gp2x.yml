@@ -4,17 +4,26 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Install dependencies
+    - name: build environment
       run: |
         whoami
-        sudo apt-get update -qq
-        sudo apt-get install -y wget
-        wget http://notaz.gp2x.de/downloads/gp2x/devkitGP2X_small.tar.xz
-        tar -C /tmp/ -xf devkitGP2X_small.tar.xz
-    - name: configure
-      run: DUMP_CONFIG_LOG=1 PATH=$PATH:/tmp/devkitGP2X/bin CROSS_COMPILE=arm-linux- ./configure --platform=gp2x
-    - name: make
-      run: PATH=$PATH:/tmp/devkitGP2X/bin CROSS_COMPILE=arm-linux- make PLATFORM_MP3=0
+        docker build -f .github/workflows/Dockerfile-gp2x -t build-gp2x .
+    - name: build
+      run: |
+        docker run -it -v "$PWD":"/home/picodrive" build-gp2x /bin/sh -c ' \
+		cd /home/picodrive && \
+		ver=$(sed s/^[^"]*"//;s/"[^"]*$// platform/common/version.h)-$(git rev-parse --short HEAD) && \
+		CROSS_COMPILE=arm-none-eabi- ./configure --platform=gp2x && \
+		make PLATFORM_MP3=0 && \
+		make -C platform/gp2x rel VER="$rel" && \
+		mv "PicoDrive_$rel.zip" "PicoDrive-gph_$rel.zip" \
+        '
+    - name: artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build result
+        path: PicoDrive-gph_*.zip
+
