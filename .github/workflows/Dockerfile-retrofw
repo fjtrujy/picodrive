@@ -1,0 +1,18 @@
+# build container for GP2X
+
+FROM --platform=linux/amd64 ubuntu:22.04
+
+ENV UNPRIVILEGED_USER_GROUPS=sudo
+
+# minimal build environment
+RUN	apt-get update && \
+	apt-get -y --no-install-recommends install sudo make vim git-core wget curl zip bzip2 xz-utils gcc g++ libc6-i386 && \
+	apt-get -y --no-install-recommends install
+
+# toolchain and libraries
+RUN	wget --no-check-certificate "https://git.libretro.com/libretro-infrastructure/libretro-build-dingux/-/raw/master/toolchain/retrofw-toolchain.2021-11-06.realoc.tar.gz" && \
+	tar xzCf /opt retrofw-toolchain.2021-11-06.realoc.tar.gz
+
+# toolchain definitions
+ENV PATH=/opt/retrofw-toolchain/bin:$PATH
+ENV CROSS_COMPILE=mipsel-RetroFW-linux-uclibc
