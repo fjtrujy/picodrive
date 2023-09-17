@@ -1,0 +1,22 @@
+# build container for legacy (open)dingux
+
+FROM --platform=linux/386 ubuntu:18.04
+#FROM --platform=linux/amd64 ubuntu:22.04
+
+ENV UNPRIVILEGED_USER_GROUPS=sudo
+
+# minimal build environment
+RUN	apt-get update && \
+	apt-get -y --no-install-recommends install sudo make vim git-core wget curl zip bzip2 xz-utils gcc g++
+
+# toolchain and libraries
+#RUN	wget --no-check-certificate "https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/dingoo-linux/dingux_toolchain_20091022.tar.bz2" && \
+RUN	wget --no-check-certificate "https://web.archive.org/web/http://www.treewalker.org/opendingux/opendingux-toolchain.2012-06-16.tar.bz2" && \
+	tar xjCf /opt opendingux-toolchain.2012-06-16.tar.bz2
+
+# toolchain definitions
+ENV PATH=/opt/opendingux-toolchain/usr/bin:$PATH
+ENV TC=/opt/opendingux-toolchain
+ENV CFLAGS="--sysroot $TC -I$TC/usr/include/SDL -mabicalls"
+ENV LDFLAGS="$CFLAGS"
+ENV CROSS_COMPILE=mipsel-linux-

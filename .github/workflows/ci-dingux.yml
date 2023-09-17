@@ -1,0 +1,27 @@
+name: CI (Dingux)
+on: [push, pull_request]
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: build environment
+      run: |
+        whoami
+        docker build -f .github/workflows/Dockerfile-dingux -t build-dingux .
+    - name: build
+      run: |
+        ver=$(cut -d'"' -f2 platform/common/version.h)-$(git rev-parse --short HEAD)
+        dock="docker run -i -v $PWD:/home/picodrive -w /home/picodrive build-dingux"
+        $dock sh -c "git config --global --add safe.directory /home/picodrive"
+        $dock sh -c "CROSS_COMPILE=mipsel-linux- ./configure --platform=dingux"
+        $dock sh -c "CROSS_COMPILE=mipsel-linux- make"
+        mv PicoDrive-dge.zip PicoDrive-dge-$ver.zip
+    - name: artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build result
+        path: PicoDrive-dge*.zip
+
