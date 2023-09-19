@@ -3,22 +3,20 @@ on: [push, pull_request]
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    container: ghcr.io/pspdev/pspdev
     steps:
+    - name: build environment
+      run: |
+        apk add git gcc g++ zip
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: build environment
-      run: |
-        whoami
-        docker pull --platform=linux/amd64 ghcr.io/pspdev/pspdev
     - name: build
       run: |
+        git config --global --add safe.directory $PWD
         ver=$(cut -d'"' -f2 platform/common/version.h)-$(git rev-parse --short HEAD)
-        dock="docker run -i -v $PWD:/home/picodrive -w /home/picodrive ghcr.io/pspdev/pspdev"
-        #$dock sh -c "git config --global --add safe.directory /home/picodrive"
-        $dock sh -c "CROSS_COMPILE=psp- ./configure --platform=psp"
-        $dock sh -c "CROSS_COMPILE=psp- make"
-        #$dock sh -c "make -C platform/psp rel VER=$ver"
+        CROSS_COMPILE=psp- ./configure --platform=psp
+        CROSS_COMPILE=psp- make
         make -C platform/psp rel VER=$ver
     - name: artifacts
       uses: actions/upload-artifact@v3
