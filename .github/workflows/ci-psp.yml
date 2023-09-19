@@ -10,15 +10,16 @@ jobs:
     - name: build environment
       run: |
         whoami
-        docker build -f .github/workflows/Dockerfile-psp -t build-psp .
+        docker pull --platform=linux/amd64 ghcr.io/pspdev/pspdev
     - name: build
       run: |
         ver=$(cut -d'"' -f2 platform/common/version.h)-$(git rev-parse --short HEAD)
-        dock="docker run -i -v $PWD:/home/picodrive -w /home/picodrive build-psp"
-        $dock sh -c "git config --global --add safe.directory /home/picodrive"
+        dock="docker run -i -v $PWD:/home/picodrive -w /home/picodrive ghcr.io/pspdev/pspdev"
+        #$dock sh -c "git config --global --add safe.directory /home/picodrive"
         $dock sh -c "CROSS_COMPILE=psp- ./configure --platform=psp"
         $dock sh -c "CROSS_COMPILE=psp- make"
-        $dock sh -c "make -C platform/psp rel VER=$ver"
+        #$dock sh -c "make -C platform/psp rel VER=$ver"
+        make -C platform/psp rel VER=$ver
     - name: artifacts
       uses: actions/upload-artifact@v3
       with:

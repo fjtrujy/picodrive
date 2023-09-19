@@ -17,10 +17,10 @@ RUN	wget --no-check-certificate "https://github.com/Ninoh-FOX/toolchain/releases
 	tar xjCf /opt opendingux-gcw0-toolchain.2021-09-08.tar.bz2
 
 # toolchain definitions
-# NB on newer GKD firmware there's a problem with missing exception handlers
-# Undefining those functions and linking in libgcc_eh solves this.
+# NB on newer GKD firmware there's a problem with missing exception handlers in
+# libgcc_s.so. Undefining those functions and linking in libgcc_eh solves this.
 ENV PATH=/opt/gcw0-toolchain-od/usr/bin:$PATH
 ENV TS=/opt/gcw0-toolchain/usr/mipsel-gcw0-linux-uclibc/sysroot
 ENV CFLAGS="--sysroot $TS -I$TS/usr/include/SDL -mabicalls"
-ENV LDFLAGS="$CFLAGS -Wl,--dynamic-linker=/lib/ld-uClibc.so.0 -u__register_frame_info -u__deregister_frame_info -lgcc_eh"
+ENV LDFLAGS="$CFLAGS -Wl,--dynamic-linker=/lib/ld-uClibc.so.0 -u__register_frame_info -u__deregister_frame_info -L$TS/../lib -lgcc_eh"
 ENV CROSS_COMPILE=mipsel-linux-
