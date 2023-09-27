@@ -7,8 +7,8 @@ ENV UNPRIVILEGED_USER_GROUPS=sudo
 
 # minimal build environment
 RUN	apt-get update && \
-	apt-get -y --no-install-recommends install sudo make vim git-core wget curl zip bzip2 xz-utils gcc g++ libc6-i386 && \
-	apt-get -y --no-install-recommends install libstdc++6-i386-cross
+	apt-get -y --no-install-recommends install sudo make vim git-core wget curl zip bzip2 xz-utils gcc g++ && \
+	apt-get -y --no-install-recommends install libc6-i386 libstdc++6-i386-cross
 
 # toolchain and libraries
 # 2014 toolchain uses gcc 4.9, but we can use the current 2021 od beta toolchain's gcc to get a better optimisation

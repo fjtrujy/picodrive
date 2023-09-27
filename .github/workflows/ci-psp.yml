@@ -8,7 +8,7 @@ jobs:
     - name: build environment
       run: |
         apk add git gcc g++ zip
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
       with:
         submodules: true
     - name: build

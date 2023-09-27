@@ -1,4 +1,5 @@
-#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <SDL_keysym.h>
 
 #include "../libpicofe/input.h"
@@ -29,18 +30,26 @@ const struct menu_keymap in_sdl_key_map[] = {
 	{ SDLK_DOWN,	PBTN_DOWN },
 	{ SDLK_LEFT,	PBTN_LEFT },
 	{ SDLK_RIGHT,	PBTN_RIGHT },
-#if defined(__MIYOO__)
-	{ SDLK_LALT,	PBTN_MOK },
-	{ SDLK_LCTRL,	PBTN_MBACK },
-#else
 	{ SDLK_LCTRL,	PBTN_MOK },
 	{ SDLK_LALT,	PBTN_MBACK },
-#endif
 	{ SDLK_SPACE,	PBTN_MA2 },
 	{ SDLK_LSHIFT,	PBTN_MA3 },
 	{ SDLK_TAB,	PBTN_L },
 	{ SDLK_BACKSPACE,	PBTN_R },
 };
+const struct menu_keymap in_sdl_key_map_miyoo[] = {
+	{ SDLK_UP,	PBTN_UP },
+	{ SDLK_DOWN,	PBTN_DOWN },
+	{ SDLK_LEFT,	PBTN_LEFT },
+	{ SDLK_RIGHT,	PBTN_RIGHT },
+	{ SDLK_LALT,	PBTN_MOK }, // swapped A/B
+	{ SDLK_LCTRL,	PBTN_MBACK },
+	{ SDLK_SPACE,	PBTN_MA2 },
+	{ SDLK_LSHIFT,	PBTN_MA3 },
+	{ SDLK_TAB,	PBTN_L },
+	{ SDLK_BACKSPACE,	PBTN_R },
+};
+
 const int in_sdl_key_map_sz = sizeof(in_sdl_key_map) / sizeof(in_sdl_key_map[0]);
 
 const struct menu_keymap in_sdl_joy_map[] = {
@@ -61,43 +70,87 @@ const char * const _in_sdl_key_names[SDLK_LAST] = {
 	[SDLK_DOWN] = "DOWN",
 	[SDLK_LEFT] = "LEFT",
 	[SDLK_RIGHT] = "RIGHT",
-#if defined(__MIYOO__)
-	[SDLK_LALT] = "A",
-	[SDLK_LCTRL] = "B",
-#else
-	[SDLK_LCTRL] = "A",
-	[SDLK_LALT] = "B",
-#endif
-#if defined(__GCW0__) || defined(__MIYOO__)
-	[SDLK_LSHIFT] = "X",
-	[SDLK_SPACE] = "Y",
-#else
-	[SDLK_LSHIFT] = "Y",
-	[SDLK_SPACE] = "X",
-#endif
 	[SDLK_RETURN] = "START",
 	[SDLK_ESCAPE] = "SELECT",
 
-#if defined(__RG350__) || defined(__OPENDINGUX__) || defined(__RG99__)
-	[SDLK_HOME] = "POWER",
+	[SDLK_LCTRL] = "A",
+	[SDLK_LALT] = "B",
+	[SDLK_LSHIFT] = "Y",
+	[SDLK_SPACE] = "X",
 
-	[SDLK_TAB] = "L1",
+	[SDLK_TAB] = "L1", // up to 3 shoulder keys
 	[SDLK_BACKSPACE] = "R1",
 	[SDLK_PAGEUP] = "L2",
 	[SDLK_PAGEDOWN] = "R2",
 	[SDLK_KP_DIVIDE] = "L3",
 	[SDLK_KP_PERIOD] = "R3",
-#elif defined(__MIYOO__)
-	[SDLK_TAB] = "L1",
+
+	[SDLK_HOME] = "POWER", // additional POWER key
+};
+const char * const _in_sdl_key_names_gcw0[SDLK_LAST] = {
+	[SDLK_UP] = "UP",
+	[SDLK_DOWN] = "DOWN",
+	[SDLK_LEFT] = "LEFT",
+	[SDLK_RIGHT] = "RIGHT",
+	[SDLK_RETURN] = "START",
+	[SDLK_ESCAPE] = "SELECT",
+
+	[SDLK_LCTRL] = "A",
+	[SDLK_LALT] = "B",
+	[SDLK_LSHIFT] = "X", // swapped X/Y
+	[SDLK_SPACE] = "Y",
+
+	[SDLK_TAB] = "L", // single shoulder keys
+	[SDLK_BACKSPACE] = "R",
+
+	[SDLK_POWER] = "POWER", // additional POWER/LOCK keys
+	[SDLK_PAUSE] = "LOCK",
+};
+const char * const _in_sdl_key_names_miyoo[SDLK_LAST] = {
+	[SDLK_UP] = "UP",
+	[SDLK_DOWN] = "DOWN",
+	[SDLK_LEFT] = "LEFT",
+	[SDLK_RIGHT] = "RIGHT",
+	[SDLK_RETURN] = "START",
+	[SDLK_ESCAPE] = "SELECT",
+
+	[SDLK_LCTRL] = "B", // swapped A/B
+	[SDLK_LALT] = "A",
+	[SDLK_LSHIFT] = "X", // swapped X/Y
+	[SDLK_SPACE] = "Y",
+
+	[SDLK_TAB] = "L1", // double shoulder keys
 	[SDLK_BACKSPACE] = "R1",
 	[SDLK_RALT] = "L2",
 	[SDLK_RSHIFT] = "R2",
-	[SDLK_RCTRL] = "R",
-#else
-	[SDLK_TAB] = "L",
-	[SDLK_BACKSPACE] = "R",
-	[SDLK_POWER] = "POWER",
-	[SDLK_PAUSE] = "LOCK",
-#endif
+
+	[SDLK_RCTRL] = "R", // additional R key
 };
-const char * const (*in_sdl_key_names)[SDLK_LAST] = &_in_sdl_key_names;
+const char * const (*in_sdl_key_names)[SDLK_LAST];
+
+void init_sdl_keys(void)
+{
+	FILE *cmdfile = fopen("/proc/cmdline", "r");
+	char cmdline[999];
+
+	int n = fread(cmdline, 1, 999, cmdfile);
+	cmdline[n] = '\0';
+
+#ifdef __MIYOO__
+	// miyoo
+	memcpy(in_sdl_key_map, in_sdl_key_map_miyoo, sizeof(in_sdl_key_map));
+	in_sdl_key_names = &_in_sdl_key_names_miyoo;
+#else
+	char *hw = strstr(cmdline, "hwvariant=");
+	char *var = strtok(hw, " ");
+	if (!var) 
+		var = "v11_ddr2_256mb";
+	if (!strcmp(var, "v11_ddr2_256mb") || !strcmp(var, "v20_mddr_512mb")) {
+		// gcw0
+		in_sdl_key_names = &_in_sdl_key_names_gcw0;
+	} else {
+		// rg350, rs90, rs97, ... 
+		in_sdl_key_names = &_in_sdl_key_names;
+	}
+#endif
+}

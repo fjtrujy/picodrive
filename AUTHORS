@@ -1,3 +1,9 @@
+irixxxx
+improvements to dynamic recompilers, 32X emulation, ARM asm, sound, VDP,
+platforms (GPH, PSP, generic linux), added SG-1000 and Game Gear support,
+fixed a lot of bugs (and probably added more new bugs), cleaned up stuff,
+probably more that I've already forgotten.
+
 notaz
 core, 32X emulation, CD code, ARM asm renderers, dynamic recompilers,
 Pandora, GPH device, PSP, Gizmondo ports, CPU core hacks
@@ -28,9 +34,6 @@ Homepage: http://www.mame.net/
 
 Eke-Eke
 CD graphics processor and CD controller implementation (from Genesis Plus GX)
-
-Irixxxx
-Improvements to dynamic recompilers, 32X emulation, ARM asm, sound, VDP
 
 Additional thanks
 -----------------

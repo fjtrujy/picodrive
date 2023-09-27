@@ -12,10 +12,10 @@
 #include <dlfcn.h>
 
 #include <pico/pico_int.h>
-#include "helix/pub/mp3dec.h"
+/*#include "helix/pub/mp3dec.h"*/
 #include "mp3.h"
 
-static HMP3Decoder mp3dec;
+static /*HMP3Decoder*/ void *mp3dec;
 static unsigned char mp3_input_buffer[2 * 1024];
 
 #ifdef __GP2X__
