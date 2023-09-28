@@ -10,3 +10,6 @@
 [submodule "platform/common/dr_libs"]
 	path = platform/common/dr_libs
 	url = https://github.com/mackron/dr_libs.git
+[submodule "pico/sound/emu2413"]
+	path = pico/sound/emu2413
+	url = https://github.com/digital-sound-antiques/emu2413.git
