@@ -1,0 +1,26 @@
+name: Checkout test
+on: [push, pull_request]
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        docker_tag: [jammy, focal, bionic]
+      fail-fast: false
+
+    container: ubuntu:${{ matrix.docker_tag }}
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git
+        
+      - name: Print git version
+        run: |
+          git --version
+
+      - uses: myci-actions/checkout@8
+
+      - name: Check submodules sha
+        run: |
+          git submodule status
