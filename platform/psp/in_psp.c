@@ -24,6 +24,7 @@
 
 #define IN_PSP_PREFIX "psp:"
 #define IN_PSP_NBUTTONS 32
+#define ANALOG_DEADZONE 80
 
 /* note: in_psp handles combos (if 2 btns have the same bind,
  * both must be pressed for action to happen) */
@@ -48,6 +49,25 @@ static int lg2(unsigned v)
 	s = (v > 0x3   ) << 1; v >>= s; r |= s;
 					r |= (v >> 1);
 	return r;
+}
+
+static unsigned int psp_pad_read(int blocking)
+{
+	unsigned int buttons;
+	SceCtrlData pad;
+	if (blocking)
+	     sceCtrlReadBufferPositive(&pad, 1);
+	else sceCtrlPeekBufferPositive(&pad, 1);
+	buttons = pad.Buttons;
+
+	// analog..
+	buttons &= ~(PSP_NUB_UP|PSP_NUB_DOWN|PSP_NUB_LEFT|PSP_NUB_RIGHT);
+	if (pad.Lx < 128 - ANALOG_DEADZONE) buttons |= PSP_NUB_LEFT;
+	if (pad.Lx > 128 + ANALOG_DEADZONE) buttons |= PSP_NUB_RIGHT;
+	if (pad.Ly < 128 - ANALOG_DEADZONE) buttons |= PSP_NUB_UP;
+	if (pad.Ly > 128 + ANALOG_DEADZONE) buttons |= PSP_NUB_DOWN;
+
+	return buttons;
 }
 
 static unsigned in_psp_get_bits(void)

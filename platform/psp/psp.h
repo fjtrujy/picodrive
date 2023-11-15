@@ -8,11 +8,6 @@
 
 #include <pspctrl.h>
 
-void psp_init(void);
-void psp_finish(void);
-
-void psp_msleep(int ms);
-
 // vram usage map:
 // 000000-044000 fb0: 512*272*2
 // 044000-088000 fb1
@@ -34,22 +29,9 @@ void psp_msleep(int ms);
 #define GU_CMDLIST_SIZE (16*1024)
 
 extern unsigned int guCmdList[GU_CMDLIST_SIZE];
-extern int psp_unhandled_suspend;
 
 void *psp_video_get_active_fb(void);
-void  psp_video_switch_to_single(void);
-void  psp_video_flip(int wait_vsync, int other);
 extern void *psp_screen;
-
-unsigned int psp_pad_read(int blocking);
-
-int psp_get_cpu_clock(void);
-int psp_set_cpu_clock(int clock);
-
-char *psp_get_status_line(void);
-
-void psp_wait_suspend(void);
-void psp_resume_suspend(void);
 
 /* fake 'nub' btns, mapped to the 4 unused upper bits of ctrl buttons */
 #define PSP_NUB_UP    (1 << 26)

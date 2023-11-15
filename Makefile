@@ -225,14 +225,12 @@ USE_FRONTEND = 1
 PLATFORM_MP3 ?= 1
 endif
 ifeq "$(PLATFORM)" "psp"
-CFLAGS += -DUSE_BGR565 -G8 # -DLPRINTF_STDIO -DFW15
+CFLAGS += -DUSE_BGR565 -G8 # -DLOG_TO_FILE -DFW15
 LDLIBS += -lpspgu -lpspge -lpsppower -lpspaudio -lpspdisplay -lpspaudiocodec
 LDLIBS += -lpspctrl
-platform/common/main.o: CFLAGS += -Dmain=pico_main
 OBJS += platform/psp/plat.o
 OBJS += platform/psp/emu.o
 OBJS += platform/psp/in_psp.o
-OBJS += platform/psp/psp.o
 OBJS += platform/psp/asm_utils.o
 OBJS += platform/psp/mp3.o
 USE_FRONTEND = 1
@@ -380,7 +378,7 @@ PSPSDK ?= $(shell psp-config --pspsdk-path)
 TARGET = PicoDrive
 PSP_EBOOT_TITLE = PicoDrive
 PSP_EBOOT_ICON = platform/psp/data/icon.png
-LIBS += -lpng -lm -lz -lpspgu -lpsppower -lpspaudio -lpsprtc -lpspaudiocodec
+LIBS += -lpng -lm -lz -lpspgu -lpsppower -lpspaudio -lpspaudiocodec
 EXTRA_TARGETS = EBOOT.PBP
 include $(PSPSDK)/lib/build.mak
 # TODO image generation

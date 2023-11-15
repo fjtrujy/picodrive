@@ -8,6 +8,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <pspkernel.h>
 #include <pspsdk.h>
@@ -20,8 +22,8 @@
 int mp3_last_error = 0;
 
 static int initialized = 0;
-static SceUID thread_job_sem = -1;
-static SceUID thread_busy_sem = -1;
+static int32_t thread_job_sem = -1;
+static int32_t thread_busy_sem = -1;
 static int thread_exit = 0;
 
 // MPEG-1, layer 3
@@ -38,19 +40,19 @@ static short mp3_mix_buffer[2][1152*2] __attribute__((aligned(64)));
 static int working_buf = 0;
 
 static const char *mp3_fname = NULL;
-static SceUID mp3_handle = -1;
+static int32_t mp3_handle = -1;
 static int mp3_src_pos = 0, mp3_src_size = 0;
 
 static int decode_thread(SceSize args, void *argp);
 
 
-static void psp_sem_lock(SceUID sem)
+static void psp_sem_lock(int32_t sem)
 {
 	int ret = sceKernelWaitSema(sem, 1, 0);
 	if (ret < 0) lprintf("sceKernelWaitSema(%08x) failed with %08x\n", sem, ret);
 }
 
-static void psp_sem_unlock(SceUID sem)
+static void psp_sem_unlock(int32_t sem)
 {
 	int ret = sceKernelSignalSema(sem, 1);
 	if (ret < 0) lprintf("sceKernelSignalSema(%08x) failed with %08x\n", sem, ret);
@@ -76,7 +78,7 @@ static int read_next_frame(int which_buffer)
 
 	for (i = 0; i < 32; i++)
 	{
-		bytes_read = sceIoRead(mp3_handle, mp3_src_buffer[which_buffer], sizeof(mp3_src_buffer[which_buffer]));
+		bytes_read = read(mp3_handle, mp3_src_buffer[which_buffer], sizeof(mp3_src_buffer[which_buffer]));
 		mp3_src_pos += bytes_read;
 		if (bytes_read < MIN_INFRAME_SIZE) {
 			mp3_src_pos = mp3_src_size;
@@ -86,13 +88,13 @@ static int read_next_frame(int which_buffer)
 		if (frame_offset < 0) {
 			lprintf("missing syncword, foffs=%i\n", mp3_src_pos - bytes_read);
 			mp3_src_pos--;
-			sceIoLseek32(mp3_handle, mp3_src_pos, PSP_SEEK_SET);
+			lseek(mp3_handle, mp3_src_pos, SEEK_SET);
 			continue;
 		}
 		if (bytes_read - frame_offset < 4) {
 			lprintf("syncword @ EOB, foffs=%i\n", mp3_src_pos - bytes_read);
 			mp3_src_pos--;
-			sceIoLseek32(mp3_handle, mp3_src_pos, PSP_SEEK_SET);
+			lseek(mp3_handle, mp3_src_pos, SEEK_SET);
 			continue;
 		}
 
@@ -113,7 +115,7 @@ static int read_next_frame(int which_buffer)
 				mp3_src_pos = mp3_src_size;
 				return 0; // EOF
 			}
-			sceIoLseek32(mp3_handle, mp3_src_pos, PSP_SEEK_SET);
+			lseek(mp3_handle, mp3_src_pos, SEEK_SET);
 			continue; // didn't fit, re-read..
 		}
 
@@ -124,7 +126,7 @@ static int read_next_frame(int which_buffer)
 
 		// align for next frame read
 		mp3_src_pos -= bytes_read - (frame_offset + frame_size);
-		sceIoLseek32(mp3_handle, mp3_src_pos, PSP_SEEK_SET);
+		lseek(mp3_handle, mp3_src_pos, SEEK_SET);
 
 		break;
 	}
@@ -133,9 +135,9 @@ static int read_next_frame(int which_buffer)
 }
 
 
-static SceUID load_start_module(const char *prxname)
+static int32_t load_start_module(const char *prxname)
 {
-	SceUID mod;
+	int32_t mod;
 
 	mod = pspSdkLoadStartModule(prxname, PSP_MEMORY_PARTITION_KERNEL);
 	if (mod < 0) {
@@ -147,7 +149,7 @@ static SceUID load_start_module(const char *prxname)
 
 int mp3_init(void)
 {
-	SceUID thid, mod;
+	int32_t thid, mod;
 	int ret;
 
 	/* load modules */
@@ -243,7 +245,7 @@ void mp3_deinit(void)
 	sceKernelSignalSema(thread_job_sem, 1);
 	sceKernelDelayThread(100*1000);
 
-	if (mp3_handle >= 0) sceIoClose(mp3_handle);
+	if (mp3_handle >= 0) close(mp3_handle);
 	mp3_handle = -1;
 	mp3_fname = NULL;
 
@@ -304,10 +306,10 @@ int mp3_get_bitrate(void *f, int size)
 	if (thread_busy_sem >= 0)
 		psp_sem_lock(thread_busy_sem);
 
-	if (mp3_handle >= 0) sceIoClose(mp3_handle);
-	mp3_handle = sceIoOpen(fname, PSP_O_RDONLY, 0777);
+	if (mp3_handle >= 0) close(mp3_handle);
+	mp3_handle = open(fname, O_RDONLY, 0777);
 	if (mp3_handle < 0) {
-		lprintf("sceIoOpen(%s) failed\n", fname);
+		lprintf("open(%s) failed\n", fname);
 		goto end;
 	}
 
@@ -333,7 +335,7 @@ int mp3_get_bitrate(void *f, int size)
 	/* looking good.. */
 	retval = bitrate;
 end:
-	if (mp3_handle >= 0) sceIoClose(mp3_handle);
+	if (mp3_handle >= 0) close(mp3_handle);
 	mp3_handle = -1;
 	mp3_fname = NULL;
 	if (thread_busy_sem >= 0)
@@ -356,14 +358,14 @@ void mp3_start_play(void *f, int pos)
 
 	if (mp3_fname != fname || mp3_handle < 0)
 	{
-		if (mp3_handle >= 0) sceIoClose(mp3_handle);
-		mp3_handle = sceIoOpen(fname, PSP_O_RDONLY, 0777);
+		if (mp3_handle >= 0) close(mp3_handle);
+		mp3_handle = open(fname, O_RDONLY, 0777);
 		if (mp3_handle < 0) {
-			lprintf("sceIoOpen(%s) failed\n", fname);
+			lprintf("open(%s) failed\n", fname);
 			psp_sem_unlock(thread_busy_sem);
 			return;
 		}
-		mp3_src_size = sceIoLseek32(mp3_handle, 0, PSP_SEEK_END);
+		mp3_src_size = lseek(mp3_handle, 0, SEEK_END);
 		mp3_fname = fname;
 	}
 
@@ -372,7 +374,7 @@ void mp3_start_play(void *f, int pos)
 
 	// seek..
 	mp3_src_pos = (int) (((float)pos / 1023.0f) * (float)mp3_src_size);
-	sceIoLseek32(mp3_handle, mp3_src_pos, PSP_SEEK_SET);
+	lseek(mp3_handle, mp3_src_pos, SEEK_SET);
 	lprintf("seek %i: %i/%i\n", pos, mp3_src_pos, mp3_src_size);
 
 	mp3_job_started = 1;
@@ -456,11 +458,11 @@ void mp3_reopen_file(void)
 	lprintf("mp3_reopen_file(%s)\n", mp3_fname);
 
 	// try closing, just in case
-	if (mp3_handle >= 0) sceIoClose(mp3_handle);
+	if (mp3_handle >= 0) close(mp3_handle);
 
-	mp3_handle = sceIoOpen(mp3_fname, PSP_O_RDONLY, 0777);
+	mp3_handle = open(mp3_fname, O_RDONLY, 0777);
 	if (mp3_handle >= 0)
-		sceIoLseek32(mp3_handle, mp3_src_pos, PSP_SEEK_SET);
+		lseek(mp3_handle, mp3_src_pos, SEEK_SET);
 	lprintf("mp3_reopen_file %s\n", mp3_handle >= 0 ? "ok" : "failed");
 }
 
