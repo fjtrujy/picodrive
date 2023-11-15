@@ -538,7 +538,7 @@ void pemu_sound_start(void)
 	lprintf("starting audio: %i, len: %i, stereo: %i, pal: %i, block samples: %i\n",
 			PicoIn.sndRate, Pico.snd.len, stereo, Pico.m.pal, samples_block);
 
-	// while (sceAudioOutput2GetRestSample() > 0) psp_msleep(100);
+	// while (sceAudioOutput2GetRestSample() > 0) plat_sleep_ms(100);
 	// sceAudioSRCChRelease();
 	ret = sceAudioSRCChReserve(samples_block/2, PicoIn.sndRate, 2); // seems to not need that stupid 64byte alignment
 	if (ret < 0) {
@@ -572,7 +572,7 @@ void pemu_sound_stop(void)
 	sceKernelDelayThread(100*1000);
 	samples_made = samples_done = 0;
 	for (i = 0; sceAudioOutput2GetRestSample() > 0 && i < 16; i++)
-		psp_msleep(100);
+		plat_sleep_ms(100);
 	sceAudioSRCChRelease();
 }
 
@@ -581,7 +581,7 @@ void pemu_sound_wait(void)
 {
 	// TODO: test this
 	while (!sound_thread_exit && samples_made - samples_done > samples_block * 4)
-		psp_msleep(10);
+		plat_sleep_ms(10);
 }
 
 static void sound_deinit(void)
