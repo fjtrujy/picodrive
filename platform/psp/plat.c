@@ -70,10 +70,25 @@ void plat_target_finish(void)
 /* display a completed frame buffer and prepare a new render buffer */
 void plat_video_flip(void)
 {
+	int offs = (psp_screen == VRAM_FB0) ? VRAMOFFS_FB0 : VRAMOFFS_FB1;
+
 	g_menubg_src_ptr = psp_screen;
-	psp_video_flip(currentConfig.EmuOpt & EOPT_VSYNC, 1);
-	g_screen_ptr = VRAM_CACHED_STUFF + (psp_screen - VRAM_FB0);
-	plat_video_set_buffer(g_screen_ptr);
+
+	sceGuSync(0, 0); // sync with prev
+	psp_video_flip(currentConfig.EmuOpt & EOPT_VSYNC, 0);
+
+	if (g_menuscreen_ptr == NULL) {
+		sceGuStart(GU_DIRECT, guCmdList);
+		sceGuDrawBuffer(GU_PSM_5650, (void *)offs, 512); // point to back buffer
+
+		blitscreen_clut();
+
+		sceGuFinish();
+
+		g_screen_ptr = VRAM_CACHED_STUFF + (psp_screen - VRAM_FB0);
+		plat_video_set_buffer(g_screen_ptr);
+	} else
+		g_menuscreen_ptr = psp_screen;
 }
 
 /* wait for start of vertical blanking */
@@ -96,6 +111,7 @@ void plat_video_menu_begin(void)
 /* display a completed menu screen */
 void plat_video_menu_end(void)
 {
+	g_menuscreen_ptr = NULL;
 	plat_video_wait_vsync();
 	psp_video_flip(0, 0);
 }
