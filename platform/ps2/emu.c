@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <malloc.h>
 
 #include <kernel.h>
 #include <ps2_joystick_driver.h>
@@ -64,8 +65,56 @@ typedef struct ps2_video {
 	uint8_t pixel_format;
 } ps2_video_t;
 
+ps2_video_t *ps2_video = NULL;
+
 #define is_16bit_mode() \
 	(currentConfig.renderer == RT_16BIT || (PicoIn.AHW & PAHW_32X))
+
+static void video_init(void)
+{
+    ps2_video = (ps2_video_t*)calloc(1, sizeof(ps2_video_t));
+
+    GSGLOBAL *gsGlobal;
+
+    gsGlobal = gsKit_init_global();
+
+    gsGlobal->Mode = GS_MODE_NTSC;
+    gsGlobal->Height = 448;
+
+    gsGlobal->PSM  = GS_PSM_CT24;
+    gsGlobal->PSMZ = GS_PSMZ_16S;
+    gsGlobal->ZBuffering = GS_SETTING_OFF;
+    gsGlobal->DoubleBuffering = GS_SETTING_ON;
+    gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
+    gsGlobal->Dithering = GS_SETTING_OFF;
+
+    gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
+
+    dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
+    dmaKit_chan_init(DMA_CHANNEL_GIF);
+
+    gsKit_set_clamp(gsGlobal, GS_CMODE_REPEAT);
+
+    gsKit_vram_clear(gsGlobal);
+
+    gsKit_init_screen(gsGlobal);
+
+    gsKit_TexManager_init(gsGlobal);
+
+    gsKit_mode_switch(gsGlobal, GS_ONESHOT);
+    gsKit_clear(gsGlobal, GS_BLACK);
+    ps2_video->gsGlobal = gsGlobal;
+}
+
+static void video_deinit(void)
+{
+    if (!ps2_video) return;
+
+    gsKit_clear(ps2_video->gsGlobal, GS_BLACK);
+    gsKit_vram_clear(ps2_video->gsGlobal);
+    gsKit_deinit_global(ps2_video->gsGlobal);
+    free(ps2_video);
+}
 
 static int get_renderer(void)
 {
@@ -201,6 +250,7 @@ void pemu_finalize_frame(const char *fps, const char *notice)
 
 void plat_init(void) 
 {
+    video_init();
     init_joystick_driver(false);
     in_ps2_init(in_ps2_defbinds);
     in_probe();
@@ -211,6 +261,7 @@ void plat_init(void)
 void plat_finish(void) {
     deinit_audio_driver();
     deinit_joystick_driver(false);
+    video_deinit();
 }
 
 /* display emulator status messages before holding emulation */
