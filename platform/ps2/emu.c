@@ -4,6 +4,10 @@
 #include <ps2_joystick_driver.h>
 #include <ps2_audio_driver.h>
 #include <libpad.h>
+#include <gsKit.h>
+#include <dmaKit.h>
+#include <gsToolkit.h>
+#include <gsInline.h>
 
 #include "in_ps2.h"
 #include "../libpicofe/input.h"
@@ -14,6 +18,11 @@
 #include <pico/pico_int.h>
 
 #define OSD_FPS_X 220
+
+/* turn black GS Screen */
+#define GS_BLACK GS_SETREG_RGBA(0x00, 0x00, 0x00, 0x80)
+/* Generic tint color */
+#define GS_TEXT GS_SETREG_RGBA(0x80, 0x80, 0x80, 0x80)
 
 static int osd_buf_cnt, osd_cdleds;
 
@@ -41,6 +50,19 @@ static struct in_default_bind in_ps2_defbinds[] =
 const char *renderer_names[] = { "16bit accurate", " 8bit accurate", " 8bit fast", NULL };
 const char *renderer_names32x[] = { "accurate", "faster", "fastest", NULL };
 enum renderer_types { RT_16BIT, RT_8BIT_ACC, RT_8BIT_FAST, RT_COUNT };
+
+typedef struct ps2_video {
+	GSGLOBAL *gsGlobal;
+
+	GSTEXTURE *scrbitmap;
+	GSTEXTURE *tex_spr0;
+	GSTEXTURE *tex_spr1;
+	GSTEXTURE *tex_spr2;
+	GSTEXTURE *tex_fix;
+	uint32_t offset;
+	uint8_t vsync; /* 0 (Disabled), 1 (Enabled), 2 (Dynamic) */
+	uint8_t pixel_format;
+} ps2_video_t;
 
 #define is_16bit_mode() \
 	(currentConfig.renderer == RT_16BIT || (PicoIn.AHW & PAHW_32X))

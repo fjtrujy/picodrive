@@ -237,7 +237,7 @@ USE_FRONTEND = 1
 endif
 ifeq "$(PLATFORM)" "ps2"
 CFLAGS += -DUSE_BGR565 # -DLOG_TO_FILE
-LDLIBS += -lps2_drivers -lpatches
+LDLIBS += -lpatches -lgskit -ldmakit -lps2_drivers
 OBJS += platform/ps2/plat.o
 OBJS += platform/ps2/emu.o
 OBJS += platform/ps2/in_ps2.o
