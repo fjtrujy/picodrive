@@ -100,7 +100,7 @@ jobs:
     steps:
     - name: build environment
       run: |
-        apk add cmake gmp mpc1 mpfr4 make git zip make
+        apk add build-base cmake git zip make
     - uses: actions/checkout@v3
       with:
         submodules: true
@@ -111,12 +111,12 @@ jobs:
         ver=$(cut -d'"' -f2 platform/common/version.h)-$(git rev-parse --short HEAD)
         ./configure --platform=ps2
         make -j2
-    #     make -C platform/psp rel VER=$ver
-    # - name: artifacts
-    #   uses: actions/upload-artifact@v3
-    #   with:
-    #     name: PSP
-    #     path: PicoDrive_psp_*.zip
+        make -C platform/ps2 rel VER=$ver
+    - name: artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: PS2
+        path: PicoDrive_ps2_*.zip
 
 
   build-dingux:
