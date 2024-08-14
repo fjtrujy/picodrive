@@ -76,10 +76,20 @@ jobs:
     steps:
     - name: build environment
       run: |
-        apk add git gcc g++ zip
+        apk add git gcc g++ zip autoconf automake zlib-dev bash
     - uses: actions/checkout@v4
       with:
         submodules: true
+
+    - name: Recompile pspsdk
+      run: |
+        git clone https://github.com/fjtrujy/pspsdk.git
+        cd pspsdk
+        git checkout inline_gu_parallel
+        ./bootstrap
+        ./configure
+        make -j $(getconf _NPROCESSORS_ONLN) install
+
     - name: build
       run: |
         export CROSS_COMPILE=psp-

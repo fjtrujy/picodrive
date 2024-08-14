@@ -30,13 +30,13 @@ extern int pico_main(int argc, char *argv[]);
 
 #ifndef FW15
 
-PSP_MODULE_INFO("PicoDrive", 0, 1, 97);
+PSP_MODULE_INFO("PicoDrive Perf", 0, 1, 97);
 
 int main(int argc, char *argv[]) { return pico_main(argc, argv); }	/* just a wrapper */
 
 #else
 
-PSP_MODULE_INFO("PicoDrive", 0x1000, 1, 97);
+PSP_MODULE_INFO("PicoDrive Perf", 0x1000, 1, 97);
 PSP_MAIN_THREAD_ATTR(0);
 
 int main(int argc, char *argv[])

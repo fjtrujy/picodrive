@@ -74,7 +74,6 @@ void plat_video_flip(void)
 
 	g_menubg_src_ptr = psp_screen;
 
-	sceGuSync(0, 0); // sync with prev
 	psp_video_flip(currentConfig.EmuOpt & EOPT_VSYNC);
 	offs = (unsigned long)psp_screen - VRAM_ADDR; // back buffer offset
 
@@ -87,6 +86,7 @@ void plat_video_flip(void)
 	blitscreen_clut();
 
 	sceGuFinish();
+	sceGuSync(0, 0);
 
 	g_screen_ptr = VRAM_CACHED_STUFF + offs;
 	plat_video_set_buffer(g_screen_ptr);

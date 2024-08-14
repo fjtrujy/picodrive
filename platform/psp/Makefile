@@ -11,7 +11,7 @@ include ../../config.mak
 #PSPSDK ?= $(shell psp-config --pspsdk-path)
 #include $(PSPSDK)/lib/build.mak
 
-#PSP_EBOOT_TITLE = PicoDrive
+#PSP_EBOOT_TITLE = PicoDrivePerf
 #PSP_EBOOT_ICON = data/icon.png
 
 #EBOOT.PBP:
