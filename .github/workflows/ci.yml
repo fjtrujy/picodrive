@@ -133,6 +133,14 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
+
+    - name: Compile custom ps2_driver branch
+      run: |
+        git clone https://github.com/fjtrujy/ps2_drivers.git
+        cd ps2_drivers
+        git checkout main
+        make -j $(getconf _NPROCESSORS_ONLN) clean
+        make -j $(getconf _NPROCESSORS_ONLN) install
     - name: build
       run: |
         export CROSS_COMPILE=mips64r5900el-ps2-elf-
